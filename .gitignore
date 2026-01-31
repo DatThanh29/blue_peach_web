@@ -137,3 +137,14 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+# =========================
+# Monorepo (frontend/backend)
+# =========================
+**/node_modules
+**/.next
+**/dist
+**/.env
+**/.env.local
+
+# VS Code
+.vscode/
