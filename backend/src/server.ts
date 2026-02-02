@@ -1,10 +1,9 @@
 import dotenv from "dotenv";
-import app from "./app";
-import router from "./routes";
 
+// Load environment variables FIRST
 dotenv.config();
 
-app.use("/api", router);
+import app from "./app";
 
 const port = Number(process.env.PORT) || 4000;
 app.listen(port, () => {
