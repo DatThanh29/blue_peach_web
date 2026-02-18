@@ -1,6 +1,7 @@
 import { Router } from "express";
 import productsRouter from "./products";
 import ordersRouter from "./orders";
+import adminRouter from "./admin";
 
 
 
@@ -14,6 +15,9 @@ router.get("/health", (_req, res) => {
 // Mount sub-routes
 router.use("/products", productsRouter);
 router.use("/orders", ordersRouter);
+
+// Admin routes
+router.use("/admin", adminRouter);
 
 
 export default router;

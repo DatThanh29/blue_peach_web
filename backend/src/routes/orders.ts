@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
+import { requireAdmin } from "../middlewares/auth";
 
 const router = Router();
 
@@ -25,11 +26,15 @@ router.get("/", async (req, res) => {
   const limit = Number(req.query.limit ?? 20);
   const offset = Number(req.query.offset ?? 0);
 
-  const { data, error, count } = await supabase
-    .from("orders")
-    .select("*", { count: "exact" })
-    .order("ngay_dat_hang", { ascending: false })
-    .range(offset, offset + limit - 1);
+const { data, error, count } = await supabase
+  .from("orders")
+  .select(
+    "ma_don_hang, ngay_dat_hang, tong_thanh_toan, trang_thai_don, trang_thai_thanh_toan, hinh_thuc_thanh_toan, dia_chi_giao_hang_snapshot",
+    { count: "exact" }
+  )
+  .order("ngay_dat_hang", { ascending: false })
+  .range(offset, offset + limit - 1);
+
 
   if (error) return res.status(500).json({ error: error.message });
 
@@ -182,6 +187,30 @@ router.get("/:id", async (req, res) => {
   if (itemsErr) return res.status(500).json({ error: itemsErr.message });
 
   res.json({ ...order, items: items ?? [] });
+});
+
+/**
+ * PATCH /api/orders/:id/status
+ * Update order status (Admin only)
+ */
+router.patch("/:id/status", requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const { trang_thai_don } = req.body as { trang_thai_don?: string };
+
+  const allowed = ["pending", "processing", "shipped", "completed", "cancelled"];
+  if (!trang_thai_don || !allowed.includes(trang_thai_don)) {
+    return res.status(400).json({ error: "Invalid trang_thai_don" });
+  }
+
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ trang_thai_don })
+    .eq("ma_don_hang", id)
+    .select("ma_don_hang, trang_thai_don")
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true, order: data });
 });
 
 export default router;
