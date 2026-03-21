@@ -15,6 +15,7 @@ import com.handmeasure.api.HandMeasureResult
 import com.handmeasure.api.HandMeasureWarning
 import com.handmeasure.api.SessionDiagnostics
 import com.handmeasure.api.StepDiagnostics
+import com.handmeasure.api.CalibrationStatus
 import com.handmeasure.flow.CaptureUiState
 import com.handmeasure.flow.HandMeasureStateMachine
 import com.handmeasure.flow.StepCandidate
@@ -23,9 +24,12 @@ import com.handmeasure.measurement.FingerMeasurementFusion
 import com.handmeasure.measurement.FrameQualityInput
 import com.handmeasure.measurement.FrameQualityScorer
 import com.handmeasure.measurement.MetricScale
+import com.handmeasure.measurement.ResultReliabilityPolicy
 import com.handmeasure.measurement.ScaleCalibrator
 import com.handmeasure.measurement.StepMeasurement
 import com.handmeasure.measurement.TableRingSizeMapper
+import com.handmeasure.measurement.WidthMeasurementSource
+import com.handmeasure.measurement.toApiSource
 import com.handmeasure.vision.CardDetection
 import com.handmeasure.vision.HandDetection
 import com.handmeasure.vision.HandLandmarkEngine
@@ -70,6 +74,7 @@ class HandMeasureCoordinator(
     private val scaleCalibrator: ScaleCalibrator = ScaleCalibrator(),
     private val fingerMeasurementEngine: FingerMeasurementEngine = FingerMeasurementEngine(),
     private val fingerMeasurementFusion: FingerMeasurementFusion = FingerMeasurementFusion(),
+    private val reliabilityPolicy: ResultReliabilityPolicy = ResultReliabilityPolicy(),
     private val debugExportDirProvider: (() -> File?)? = null,
 ) {
     private val stateMachine = HandMeasureStateMachine(config.qualityThresholds)
@@ -83,6 +88,7 @@ class HandMeasureCoordinator(
         val captureState = stateMachine.currentStep()
         if (previousStep != captureState.step) {
             poseClassifier.reset()
+            previousFrameLuma = null
             previousStep = captureState.step
         }
 
@@ -94,7 +100,7 @@ class HandMeasureCoordinator(
         val cardScore = card?.confidence ?: 0f
         val ringZoneScore = if (hand?.fingerJointPair(config.targetFinger) != null) 1f else 0f
         val imageSignals = estimateImageSignals(bitmap, hand, card)
-        val planeScore = estimatePlaneCloseness(hand, card, bitmap)
+        val coplanarityProxyScore = estimateFingerCard2dProximity(hand, card, bitmap)
 
         val quality =
             frameQualityScorer.score(
@@ -110,7 +116,7 @@ class HandMeasureCoordinator(
                     motionScore = imageSignals.motionScore,
                     lightingScore = imageSignals.lightingScore,
                     poseScore = poseEvaluation?.smoothedScore ?: 0f,
-                    planeScore = planeScore,
+                    coplanarityProxyScore = coplanarityProxyScore,
                 ),
             )
 
@@ -164,99 +170,136 @@ class HandMeasureCoordinator(
         val stepDiagnostics = mutableListOf<StepDiagnostics>()
         var bestScaleMmPerPxX = 0.12
         var bestScaleMmPerPxY = 0.12
+        var calibrationStatus = CalibrationStatus.MISSING_REFERENCE
         var frontalWidthPx = 0.0
         val thicknessSamples = mutableListOf<Double>()
+        val calibrationNotes = mutableListOf<String>()
 
         stepResults.forEach { candidate ->
             val bitmap = BitmapFactory.decodeByteArray(candidate.frameBytes, 0, candidate.frameBytes.size) ?: return@forEach
-            val hand = handLandmarkEngine.detect(bitmap)
-            val card = referenceCardDetector.detect(bitmap)
-            val poseEvaluation = hand?.let { poseClassifier.evaluate(candidate.step, it) }
-            if (candidate.cardScore < config.qualityThresholds.cardMinScore) warnings += HandMeasureWarning.LOW_CARD_CONFIDENCE
-            if ((poseEvaluation?.smoothedScore ?: candidate.poseScore) < 0.45f) warnings += HandMeasureWarning.LOW_POSE_CONFIDENCE
-            if (candidate.lightingScore < config.qualityThresholds.lightingMinScore) warnings += HandMeasureWarning.LOW_LIGHTING
+            try {
+                val hand = handLandmarkEngine.detect(bitmap)
+                val card = referenceCardDetector.detect(bitmap)
+                val poseScore = hand?.let { poseClassifier.classify(candidate.step, it) } ?: candidate.poseScore
+                val coplanarityProxyScore = estimateFingerCard2dProximity(hand, card, bitmap)
+                if (candidate.cardScore < config.qualityThresholds.cardMinScore) warnings += HandMeasureWarning.LOW_CARD_CONFIDENCE
+                if (poseScore < 0.45f) warnings += HandMeasureWarning.LOW_POSE_CONFIDENCE
+                if (candidate.lightingScore < config.qualityThresholds.lightingMinScore) warnings += HandMeasureWarning.LOW_LIGHTING
 
-            val scale =
-                if (card != null) {
-                    scaleCalibrator.calibrate(card)
-                } else {
-                    warnings += HandMeasureWarning.BEST_EFFORT_ESTIMATE
-                    null
+                val scaleResult =
+                    if (card != null) {
+                        scaleCalibrator.calibrateWithDiagnostics(card)
+                    } else {
+                        warnings += HandMeasureWarning.BEST_EFFORT_ESTIMATE
+                        null
+                    }
+                val scale = scaleResult?.scale
+                if (scale != null) {
+                    bestScaleMmPerPxX = scale.mmPerPxX
+                    bestScaleMmPerPxY = scale.mmPerPxY
                 }
-            if (scale != null) {
-                bestScaleMmPerPxX = scale.mmPerPxX
-                bestScaleMmPerPxY = scale.mmPerPxY
+                if (scaleResult != null) {
+                    calibrationNotes += "step=${candidate.step.name}:${scaleResult.diagnostics.notes.joinToString("|")}"
+                    calibrationStatus =
+                        when {
+                            calibrationStatus == CalibrationStatus.DEGRADED -> CalibrationStatus.DEGRADED
+                            scaleResult.diagnostics.status == CalibrationStatus.DEGRADED -> CalibrationStatus.DEGRADED
+                            calibrationStatus == CalibrationStatus.CALIBRATED -> CalibrationStatus.CALIBRATED
+                            else -> scaleResult.diagnostics.status
+                        }
+                    if (scaleResult.diagnostics.status == CalibrationStatus.DEGRADED) {
+                        warnings += HandMeasureWarning.CALIBRATION_WEAK
+                    }
+                }
+
+                val effectiveScale = scale ?: MetricScale(bestScaleMmPerPxX, bestScaleMmPerPxY)
+                val measurement =
+                    if (hand != null) {
+                        fingerMeasurementEngine.measureVisibleWidth(bitmap, hand, config.targetFinger, effectiveScale)
+                    } else {
+                        warnings += HandMeasureWarning.BEST_EFFORT_ESTIMATE
+                        null
+                    }
+
+                val measurementSource = measurement?.source ?: WidthMeasurementSource.DEFAULT_HEURISTIC
+                val widthMm = measurement?.widthMm ?: 18.0
+                val usedFallback = measurement?.usedFallback ?: true
+                val measurementConfidence =
+                    if (measurement == null) {
+                        0.18f
+                    } else {
+                        (
+                            (if (measurement.usedFallback) 0.35f else 0.85f) * 0.35f +
+                                (1f - (measurement.widthVarianceMm / 4.0).toFloat().coerceIn(0f, 1f)) * 0.35f +
+                                (measurement.validSamples / 7f).coerceIn(0f, 1f) * 0.30f
+                        ).coerceIn(0f, 1f)
+                    }
+                if (usedFallback) warnings += HandMeasureWarning.BEST_EFFORT_ESTIMATE
+                if (candidate.step == CaptureStep.FRONT_PALM) {
+                    frontalWidthPx = measurement?.widthPx ?: frontalWidthPx
+                } else {
+                    thicknessSamples += widthMm
+                }
+
+                stepMeasurements +=
+                    StepMeasurement(
+                        step = candidate.step,
+                        widthMm = widthMm,
+                        confidence = candidate.qualityScore,
+                        measurementConfidence = measurementConfidence,
+                        rawWidthMm = widthMm,
+                        measurementSource = measurementSource,
+                        usedFallback = usedFallback,
+                        debugNotes =
+                            listOf(
+                                "validSamples=${measurement?.validSamples ?: 0}",
+                                "widthVarianceMm=${measurement?.widthVarianceMm ?: -1.0}",
+                                "fallback=$usedFallback",
+                                "source=$measurementSource",
+                            ),
+                    )
+
+                stepDiagnostics +=
+                    StepDiagnostics(
+                        step = candidate.step,
+                        handScore = candidate.handScore,
+                        cardScore = candidate.cardScore,
+                        poseScore = poseScore,
+                        blurScore = candidate.blurScore,
+                        motionScore = candidate.motionScore,
+                        lightingScore = candidate.lightingScore,
+                        cardCoverageRatio = card?.coverageRatio ?: 0f,
+                        cardAspectResidual = card?.aspectResidual ?: 1f,
+                        cardRectangularityScore = card?.rectangularityScore ?: 0f,
+                        cardEdgeSupportScore = card?.edgeSupportScore ?: 0f,
+                        cardRectificationConfidence = card?.rectificationConfidence ?: 0f,
+                        scaleMmPerPxX = effectiveScale.mmPerPxX,
+                        scaleMmPerPxY = effectiveScale.mmPerPxY,
+                        widthSamplesMm = measurement?.sampledWidthsMm ?: emptyList(),
+                        widthVarianceMm = measurement?.widthVarianceMm ?: 999.0,
+                        accepted = measurement != null,
+                        rejectedReason = if (measurement == null || measurement.usedFallback) "fallback_or_no_edges" else null,
+                        confidencePenaltyReasons = candidate.confidencePenaltyReasons,
+                        measurementSource = measurementSource.toApiSource(),
+                        usedFallback = usedFallback,
+                        coplanarityProxyScore = coplanarityProxyScore,
+                    )
+            } finally {
+                bitmap.recycle()
             }
-
-            val effectiveScale = scale ?: MetricScale(bestScaleMmPerPxX, bestScaleMmPerPxY)
-            val measurement =
-                if (hand != null) {
-                    fingerMeasurementEngine.measureVisibleWidth(bitmap, hand, config.targetFinger, effectiveScale)
-                } else {
-                    warnings += HandMeasureWarning.BEST_EFFORT_ESTIMATE
-                    null
-                }
-
-            val widthMm = measurement?.widthMm ?: 18.0
-            val measurementConfidence =
-                if (measurement == null) {
-                    0.18f
-                } else {
-                    (
-                        (if (measurement.usedFallback) 0.35f else 0.85f) * 0.35f +
-                            (1f - (measurement.widthVarianceMm / 4.0).toFloat().coerceIn(0f, 1f)) * 0.35f +
-                            (measurement.validSamples / 7f).coerceIn(0f, 1f) * 0.30f
-                    ).coerceIn(0f, 1f)
-                }
-            if (measurement?.usedFallback == true || measurement == null) warnings += HandMeasureWarning.BEST_EFFORT_ESTIMATE
-            if (candidate.step == CaptureStep.FRONT_PALM) {
-                frontalWidthPx = measurement?.widthPx ?: frontalWidthPx
-            } else {
-                thicknessSamples += widthMm
-            }
-            stepMeasurements +=
-                StepMeasurement(
-                    step = candidate.step,
-                    widthMm = widthMm,
-                    confidence = candidate.qualityScore,
-                    measurementConfidence = measurementConfidence,
-                    rawWidthMm = widthMm,
-                    debugNotes =
-                        listOf(
-                            "validSamples=${measurement?.validSamples ?: 0}",
-                            "widthVarianceMm=${measurement?.widthVarianceMm ?: -1.0}",
-                            "fallback=${measurement?.usedFallback ?: true}",
-                        ),
-                )
-
-            stepDiagnostics +=
-                StepDiagnostics(
-                    step = candidate.step,
-                    handScore = candidate.handScore,
-                    cardScore = candidate.cardScore,
-                    poseScore = poseEvaluation?.smoothedScore ?: candidate.poseScore,
-                    blurScore = candidate.blurScore,
-                    motionScore = candidate.motionScore,
-                    lightingScore = candidate.lightingScore,
-                    cardCoverageRatio = card?.coverageRatio ?: 0f,
-                    cardAspectResidual = card?.aspectResidual ?: 1f,
-                    cardRectangularityScore = card?.rectangularityScore ?: 0f,
-                    cardEdgeSupportScore = card?.edgeSupportScore ?: 0f,
-                    cardRectificationConfidence = card?.rectificationConfidence ?: 0f,
-                    scaleMmPerPxX = effectiveScale.mmPerPxX,
-                    scaleMmPerPxY = effectiveScale.mmPerPxY,
-                    widthSamplesMm = measurement?.sampledWidthsMm ?: emptyList(),
-                    widthVarianceMm = measurement?.widthVarianceMm ?: 999.0,
-                    accepted = measurement != null,
-                    rejectedReason = if (measurement == null || measurement.usedFallback) "fallback_or_no_edges" else null,
-                    confidencePenaltyReasons = candidate.confidencePenaltyReasons,
-                )
-            bitmap.recycle()
         }
 
         if (stepMeasurements.isEmpty()) {
             warnings += HandMeasureWarning.BEST_EFFORT_ESTIMATE
-            stepMeasurements += StepMeasurement(CaptureStep.FRONT_PALM, widthMm = 18.0, confidence = 0.2f, measurementConfidence = 0.2f)
+            stepMeasurements +=
+                StepMeasurement(
+                    step = CaptureStep.FRONT_PALM,
+                    widthMm = 18.0,
+                    confidence = 0.2f,
+                    measurementConfidence = 0.2f,
+                    measurementSource = WidthMeasurementSource.DEFAULT_HEURISTIC,
+                    usedFallback = true,
+                )
         }
 
         val fused = fingerMeasurementFusion.fuse(stepMeasurements)
@@ -264,6 +307,8 @@ class HandMeasureCoordinator(
         if (snapshot.completedSteps.any { it.blurScore < config.qualityThresholds.blurMinScore }) warnings += HandMeasureWarning.HIGH_BLUR
         if (snapshot.completedSteps.any { it.motionScore < config.qualityThresholds.motionMinScore }) warnings += HandMeasureWarning.HIGH_MOTION
 
+        val reliability = reliabilityPolicy.assess(fused, stepMeasurements, calibrationStatus, warnings)
+        val finalWarnings = reliability.warnings
         val ringSize = ringSizeMapper.nearestForDiameter(config.ringSizeTable, fused.equivalentDiameterMm)
         val captured =
             snapshot.completedSteps.map {
@@ -287,8 +332,13 @@ class HandMeasureCoordinator(
                         equivalentDiameterMm = fused.equivalentDiameterMm,
                         suggestedRingSizeLabel = ringSize.label,
                         finalConfidence = fused.confidenceScore,
-                        warningReasons = warnings.map { it.name },
+                        warningReasons = finalWarnings.map { it.name },
                         perStepResidualsMm = fused.perStepResidualsMm,
+                        resultMode = reliability.resultMode,
+                        qualityLevel = reliability.qualityLevel,
+                        retryRecommended = reliability.retryRecommended,
+                        calibrationStatus = calibrationStatus,
+                        measurementSources = reliability.measurementSources,
                     ),
             )
 
@@ -301,15 +351,20 @@ class HandMeasureCoordinator(
                 equivalentDiameterMm = fused.equivalentDiameterMm,
                 suggestedRingSizeLabel = ringSize.label,
                 confidenceScore = fused.confidenceScore.coerceIn(0f, 1f),
-                warnings = warnings.toList(),
+                warnings = finalWarnings,
                 capturedSteps = captured,
+                resultMode = reliability.resultMode,
+                qualityLevel = reliability.qualityLevel,
+                retryRecommended = reliability.retryRecommended,
+                calibrationStatus = calibrationStatus,
+                measurementSources = reliability.measurementSources,
                 debugMetadata =
                     DebugMetadata(
                         mmPerPxX = bestScaleMmPerPxX,
                         mmPerPxY = bestScaleMmPerPxY,
                         frontalWidthPx = frontalWidthPx,
                         thicknessSamplesMm = thicknessSamples,
-                        rawNotes = debugNotes + fused.debugNotes,
+                        rawNotes = debugNotes + calibrationNotes + fused.debugNotes,
                         sessionDiagnostics = sessionDiagnostics,
                     ),
             )
@@ -339,6 +394,11 @@ class HandMeasureCoordinator(
                 put("confidenceScore", result.confidenceScore.toDouble())
                 put("warnings", JSONArray(result.warnings.map { it.name }))
                 put("capturedSteps", JSONArray(result.capturedSteps.map { it.step.name }))
+                put("resultMode", result.resultMode.name)
+                put("qualityLevel", result.qualityLevel.name)
+                put("retryRecommended", result.retryRecommended)
+                put("calibrationStatus", result.calibrationStatus.name)
+                put("measurementSources", JSONArray(result.measurementSources.map { it.name }))
                 put("debugMetadata", JSONObject().apply {
                     put("mmPerPxX", result.debugMetadata?.mmPerPxX)
                     put("mmPerPxY", result.debugMetadata?.mmPerPxY)
@@ -521,7 +581,8 @@ class HandMeasureCoordinator(
         return (centered * 0.65f + clippingPenalty * 0.35f).coerceIn(0f, 1f)
     }
 
-    private fun estimatePlaneCloseness(hand: HandDetection?, card: CardDetection?, bitmap: Bitmap): Float {
+    // This is not true 3D coplanarity. It is only a 2D proximity proxy in image space.
+    private fun estimateFingerCard2dProximity(hand: HandDetection?, card: CardDetection?, bitmap: Bitmap): Float {
         if (hand == null || card == null) return 0f
         val jointPair = hand.fingerJointPair(config.targetFinger) ?: return 0f
         val ringCenter = PointF((jointPair.first.x + jointPair.second.x) / 2f, (jointPair.first.y + jointPair.second.y) / 2f)

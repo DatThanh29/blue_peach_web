@@ -17,6 +17,11 @@ data class ReplayOutput(
     val predictedRingSize: String,
     val confidence: Float,
     val warnings: List<String>,
+    val resultMode: String,
+    val qualityLevel: String,
+    val calibrationStatus: String,
+    val retryRecommended: Boolean,
+    val measurementSources: List<String>,
     val diameterErrorMm: Double? = null,
 )
 
@@ -49,6 +54,11 @@ class MeasurementReplayRunner(
                 predictedRingSize = result.suggestedRingSizeLabel,
                 confidence = result.confidenceScore,
                 warnings = result.warnings.map { it.name },
+                resultMode = result.resultMode.name,
+                qualityLevel = result.qualityLevel.name,
+                calibrationStatus = result.calibrationStatus.name,
+                retryRecommended = result.retryRecommended,
+                measurementSources = result.measurementSources.map { it.name },
                 diameterErrorMm = groundTruthDiameter?.let { kotlin.math.abs(result.equivalentDiameterMm - it) },
             )
         if (outputReportFile != null) {
@@ -87,5 +97,10 @@ fun ReplayOutput.toJson(): JSONObject =
         put("predictedRingSize", predictedRingSize)
         put("confidence", confidence.toDouble())
         put("warnings", warnings)
+        put("resultMode", resultMode)
+        put("qualityLevel", qualityLevel)
+        put("calibrationStatus", calibrationStatus)
+        put("retryRecommended", retryRecommended)
+        put("measurementSources", measurementSources)
         if (diameterErrorMm != null) put("diameterErrorMm", diameterErrorMm)
     }

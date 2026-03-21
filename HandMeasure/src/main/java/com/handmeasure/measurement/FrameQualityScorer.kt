@@ -19,7 +19,8 @@ data class FrameQualityInput(
     val motionScore: Float,
     val lightingScore: Float,
     val poseScore: Float,
-    val planeScore: Float,
+    // 2D proxy only: proximity between finger ring zone and detected card center.
+    val coplanarityProxyScore: Float,
 )
 
 data class FrameQualitySubscores(
@@ -37,6 +38,7 @@ data class FrameQualityResult(
     val subscores: FrameQualitySubscores,
     val warnings: List<String>,
     val confidencePenaltyReasons: List<String>,
+    val qualityLevel: Float,
 )
 
 class FrameQualityScorer(
@@ -72,7 +74,7 @@ class FrameQualityScorer(
                 detectionConfidence * weights.detectionConfidence +
                     poseConfidence * weights.poseConfidence +
                     measurementConfidence * weights.measurementConfidence +
-                    input.planeScore.coerceIn(0f, 1f) * weights.planeConfidence
+                    input.coplanarityProxyScore.coerceIn(0f, 1f) * weights.planeConfidence
             ).coerceIn(0f, 1f)
 
         val warnings = mutableListOf<String>()
@@ -109,6 +111,7 @@ class FrameQualityScorer(
                 ),
             warnings = warnings.distinct(),
             confidencePenaltyReasons = penalties.distinct(),
+            qualityLevel = (measurementConfidence * 0.6f + detectionConfidence * 0.4f).coerceIn(0f, 1f),
         )
     }
 }

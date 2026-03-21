@@ -21,12 +21,13 @@ class FrameQualityScorerTest {
                     motionScore = 0.8f,
                     lightingScore = 0.8f,
                     poseScore = 0.3f,
-                    planeScore = 0.7f,
+                    coplanarityProxyScore = 0.7f,
                 ),
             )
 
         assertThat(result.totalScore).isLessThan(0.7f)
         assertThat(result.confidencePenaltyReasons).contains("card_detection_low")
         assertThat(result.confidencePenaltyReasons).contains("pose_low")
+        assertThat(result.qualityLevel).isLessThan(0.8f)
     }
 }

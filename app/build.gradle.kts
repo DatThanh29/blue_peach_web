@@ -33,6 +33,13 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    sourceSets {
+        getByName("main") {
+            // Avoid accidentally overriding the model provided by :HandMeasure.
+            assets.excludes += "hand_landmarker.task"
+        }
+    }
 }
 
 dependencies {

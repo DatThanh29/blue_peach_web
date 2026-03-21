@@ -22,6 +22,7 @@ data class FingerWidthMeasurement(
     val widthPx: Double,
     val widthMm: Double,
     val usedFallback: Boolean,
+    val source: WidthMeasurementSource,
     val validSamples: Int = 0,
     val widthVarianceMm: Double = 0.0,
     val sampledWidthsMm: List<Double> = emptyList(),
@@ -69,9 +70,8 @@ class FingerMeasurementEngine {
             val roiGradient = Mat(gradMag, rect)
             val roiBinary = Mat(binary, rect)
             val localCenter = PointF(ringCenter.x - rect.x, ringCenter.y - rect.y)
-            val bandOffsets = listOf(-0.18f, -0.12f, -0.06f, 0f, 0.06f, 0.12f, 0.18f)
+            val bandOffsets = SAMPLE_BAND_OFFSETS
             val widthSamplesPx = mutableListOf<Double>()
-            val debugSamplesMm = mutableListOf<Double>()
             bandOffsets.forEach { offset ->
                 val sampleCenter =
                     PointF(
@@ -82,9 +82,8 @@ class FingerMeasurementEngine {
                 val rightEdge = findEdge(roiGradient, roiBinary, sampleCenter, perpNorm, 1)
                 if (leftEdge != null && rightEdge != null) {
                     val width = distance(leftEdge, rightEdge)
-                    if (width > axisLength * 0.12 && width < axisLength * 1.15) {
+                    if (width > axisLength * MIN_WIDTH_AXIS_RATIO && width < axisLength * MAX_WIDTH_AXIS_RATIO) {
                         widthSamplesPx += width
-                        debugSamplesMm += width * scale.meanMmPerPx
                     }
                 }
             }
@@ -102,6 +101,7 @@ class FingerMeasurementEngine {
                 widthPx = widthPx,
                 widthMm = widthPx * scale.meanMmPerPx,
                 usedFallback = false,
+                source = WidthMeasurementSource.EDGE_PROFILE,
                 validSamples = cleanedSamples.size,
                 widthVarianceMm = variance,
                 sampledWidthsMm = sampleMm,
@@ -122,16 +122,17 @@ class FingerMeasurementEngine {
         scale: MetricScale,
     ): FingerWidthMeasurement {
         val jointPair = handDetection.fingerJointPair(targetFinger)
-        val widthPx =
+        val (widthPx, source) =
             if (jointPair == null) {
-                120.0
+                DEFAULT_WIDTH_PX to WidthMeasurementSource.DEFAULT_HEURISTIC
             } else {
-                distance(jointPair.first, jointPair.second) * 0.40
+                (distance(jointPair.first, jointPair.second) * JOINT_WIDTH_RATIO) to WidthMeasurementSource.LANDMARK_HEURISTIC
             }
         return FingerWidthMeasurement(
             widthPx = widthPx,
             widthMm = widthPx * scale.meanMmPerPx,
             usedFallback = true,
+            source = source,
             validSamples = 0,
             widthVarianceMm = 999.0,
             sampledWidthsMm = emptyList(),
@@ -160,7 +161,7 @@ class FingerMeasurementEngine {
                 best = PointF(x.toFloat(), y.toFloat())
             }
         }
-        return if (bestValue >= 22.0) best else null
+        return if (bestValue >= EDGE_RESPONSE_THRESHOLD) best else null
     }
 
     private fun rejectOutliers(values: List<Double>): List<Double> {
@@ -187,4 +188,14 @@ class FingerMeasurementEngine {
     private fun distance(a: PointF, b: PointF): Double = hypot((a.x - b.x).toDouble(), (a.y - b.y).toDouble())
 
     private fun distance(a: Landmark2D, b: Landmark2D): Double = hypot((a.x - b.x).toDouble(), (a.y - b.y).toDouble())
+
+    private companion object {
+        // Offsets sampled along the MCP->PIP axis to robustly estimate visible width around the ring zone.
+        val SAMPLE_BAND_OFFSETS = listOf(-0.18f, -0.12f, -0.06f, 0f, 0.06f, 0.12f, 0.18f)
+        const val MIN_WIDTH_AXIS_RATIO = 0.12
+        const val MAX_WIDTH_AXIS_RATIO = 1.15
+        const val EDGE_RESPONSE_THRESHOLD = 22.0
+        const val JOINT_WIDTH_RATIO = 0.40
+        const val DEFAULT_WIDTH_PX = 120.0
+    }
 }

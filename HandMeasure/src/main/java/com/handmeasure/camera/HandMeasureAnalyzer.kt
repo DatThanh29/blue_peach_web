@@ -1,5 +1,6 @@
 package com.handmeasure.camera
 
+import android.graphics.Bitmap
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.handmeasure.coordinator.HandMeasureCoordinator
@@ -22,16 +23,17 @@ class HandMeasureAnalyzer(
         }
         lastAnalyzedAt.set(now)
 
+        var bitmap: Bitmap? = null
         try {
             val jpegBytes = ImageUtils.imageProxyToJpeg(image)
-            val bitmap = ImageUtils.jpegToBitmap(jpegBytes) ?: return
+            bitmap = ImageUtils.jpegToBitmap(jpegBytes) ?: return
             val state = coordinator.analyzeFrame(jpegBytes, bitmap)
-            bitmap.recycle()
             onStateUpdated(state)
             if (coordinator.isCaptureComplete()) {
                 onFlowCompleted()
             }
         } finally {
+            bitmap?.recycle()
             image.close()
         }
     }

@@ -52,6 +52,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.handmeasure.api.HandMeasureConfig
 import com.handmeasure.api.HandMeasureResult
+import com.handmeasure.api.CalibrationStatus
+import com.handmeasure.api.MeasurementSource
+import com.handmeasure.api.QualityLevel
+import com.handmeasure.api.ResultMode
 import com.handmeasure.camera.CameraController
 import com.handmeasure.camera.HandMeasureAnalyzer
 import com.handmeasure.coordinator.HandMeasureCoordinator
@@ -111,11 +115,12 @@ private fun HandMeasureRoute(
     val coroutineScope = rememberCoroutineScope()
     val previewView = remember { PreviewView(context).apply { scaleType = PreviewView.ScaleType.FIT_CENTER } }
     val cameraController = remember { CameraController(context) }
+    val handLandmarkEngine = remember(config) { MediaPipeHandLandmarkEngine(context) }
     val coordinator =
         remember(config) {
             HandMeasureCoordinator(
                 config = config,
-                handLandmarkEngine = MediaPipeHandLandmarkEngine(context),
+                handLandmarkEngine = handLandmarkEngine,
                 debugExportDirProvider = { File(context.filesDir, "handmeasure_debug") },
             )
         }
@@ -139,14 +144,19 @@ private fun HandMeasureRoute(
             val replayResult =
                 withContext(Dispatchers.Default) {
                     runCatching {
+                        val replayEngine = MediaPipeHandLandmarkEngine(context)
                         val runner = MeasurementReplayRunner { replayConfig ->
                             HandMeasureCoordinator(
                                 config = replayConfig,
-                                handLandmarkEngine = MediaPipeHandLandmarkEngine(context),
+                                handLandmarkEngine = replayEngine,
                                 debugExportDirProvider = { File(context.filesDir, "handmeasure_debug") },
                             )
                         }
-                        runner.runFromDirectory(config.copy(debugReplayInputPath = null), File(replayPath))
+                        try {
+                            runner.runFromDirectory(config.copy(debugReplayInputPath = null), File(replayPath))
+                        } finally {
+                            replayEngine.close()
+                        }
                     }.getOrNull()
                 }
             result = replayResult?.result
@@ -156,6 +166,12 @@ private fun HandMeasureRoute(
         hasPermission =
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         if (!hasPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+
+    DisposableEffect(handLandmarkEngine) {
+        onDispose {
+            handLandmarkEngine.close()
+        }
     }
 
     DisposableEffect(lifecycleOwner, hasPermission, phase) {
@@ -201,8 +217,17 @@ private fun HandMeasureRoute(
                             equivalentDiameterMm = 16.0,
                             suggestedRingSizeLabel = config.ringSizeTable.entries.first().label,
                             confidenceScore = 0.2f,
-                            warnings = listOf(com.handmeasure.api.HandMeasureWarning.BEST_EFFORT_ESTIMATE),
+                            warnings =
+                                listOf(
+                                    com.handmeasure.api.HandMeasureWarning.BEST_EFFORT_ESTIMATE,
+                                    com.handmeasure.api.HandMeasureWarning.LOW_RESULT_RELIABILITY,
+                                ),
                             capturedSteps = emptyList(),
+                            resultMode = ResultMode.FALLBACK_ESTIMATE,
+                            qualityLevel = QualityLevel.LOW,
+                            retryRecommended = true,
+                            calibrationStatus = CalibrationStatus.MISSING_REFERENCE,
+                            measurementSources = listOf(MeasurementSource.DEFAULT_HEURISTIC),
                         )
                 },
             )
@@ -382,6 +407,8 @@ private fun ResultScreen(result: HandMeasureResult?, onDone: () -> Unit) {
                 Text("Circumference: ${result.estimatedCircumferenceMm.format2()} mm")
                 Text("Equivalent diameter: ${result.equivalentDiameterMm.format2()} mm")
                 Text("Confidence: ${result.confidenceScore.format2()}")
+                Text("Mode: ${result.resultMode} | Quality: ${result.qualityLevel}")
+                Text("Calibration: ${result.calibrationStatus} | Retry recommended: ${result.retryRecommended}")
                 if (result.warnings.isNotEmpty()) {
                     Text(
                         "Warnings: ${result.warnings.joinToString()}",

@@ -5,6 +5,8 @@ import com.handmeasure.api.HandMeasureWarning
 import kotlin.math.abs
 
 class FingerMeasurementFusion {
+    private val policy = ThicknessEstimationPolicy()
+
     fun fuse(measurements: List<StepMeasurement>): FusedFingerMeasurement {
         val frontal =
             measurements.firstOrNull { it.step == CaptureStep.FRONT_PALM }
@@ -18,23 +20,19 @@ class FingerMeasurementFusion {
 
         val sideCandidates =
             sideSteps.values.map { step ->
-                val correction =
-                    when (step.step) {
-                        CaptureStep.LEFT_OBLIQUE, CaptureStep.RIGHT_OBLIQUE -> 0.90
-                        CaptureStep.UP_TILT, CaptureStep.DOWN_TILT -> 0.93
-                        CaptureStep.FRONT_PALM -> 1.0
-                    }
+                val correction = policy.thicknessCorrection(step.step)
                 WeightedThickness(
                     source = step.step,
                     thicknessMm = step.widthMm * correction,
                     weight = (step.confidence * 0.6f + step.measurementConfidence * 0.4f).coerceAtLeast(0.05f),
+                    measurementSource = step.measurementSource,
                 )
             }
 
         val robustCandidates = rejectOutlierThickness(sideCandidates)
         val thicknessMm =
             if (robustCandidates.isEmpty()) {
-                frontal.widthMm * 0.80
+                frontal.widthMm * policy.frontalFallbackThicknessRatio
             } else {
                 weightedMedian(robustCandidates)
             }
@@ -60,7 +58,7 @@ class FingerMeasurementFusion {
 
         val warnings = buildList {
             if (finalConfidence < 0.65f) add(HandMeasureWarning.BEST_EFFORT_ESTIMATE)
-            if (sideCandidates.size < 2) add(HandMeasureWarning.THICKNESS_ESTIMATED_FROM_WEAK_ANGLES)
+            if (sideCandidates.size < policy.minThicknessCandidatesForStableEstimate) add(HandMeasureWarning.THICKNESS_ESTIMATED_FROM_WEAK_ANGLES)
             if (symmetryPenalties.leftRightPenalty > 0.10f || symmetryPenalties.upDownPenalty > 0.10f) {
                 add(HandMeasureWarning.THICKNESS_ESTIMATED_FROM_WEAK_ANGLES)
             }
@@ -69,6 +67,7 @@ class FingerMeasurementFusion {
         val debugNotes =
             buildList {
                 add("thicknessCandidates=${sideCandidates.joinToString { "${it.source}:${"%.2f".format(it.thicknessMm)}@${"%.2f".format(it.weight)}" }}")
+                add("thicknessSourceKinds=${sideCandidates.joinToString { "${it.source}:${it.measurementSource}" }}")
                 add("leftRightPenalty=${"%.3f".format(symmetryPenalties.leftRightPenalty)}")
                 add("upDownPenalty=${"%.3f".format(symmetryPenalties.upDownPenalty)}")
                 addAll(symmetryPenalties.notes)
@@ -139,6 +138,7 @@ class FingerMeasurementFusion {
         val source: CaptureStep,
         val thicknessMm: Double,
         val weight: Float,
+        val measurementSource: WidthMeasurementSource,
     )
 
     private data class SymmetryPenalties(
@@ -147,4 +147,18 @@ class FingerMeasurementFusion {
         val totalPenalty: Float,
         val notes: List<String>,
     )
+}
+
+data class ThicknessEstimationPolicy(
+    val obliqueCorrection: Double = 0.90,
+    val tiltCorrection: Double = 0.93,
+    val frontalFallbackThicknessRatio: Double = 0.80,
+    val minThicknessCandidatesForStableEstimate: Int = 2,
+) {
+    fun thicknessCorrection(step: CaptureStep): Double =
+        when (step) {
+            CaptureStep.LEFT_OBLIQUE, CaptureStep.RIGHT_OBLIQUE -> obliqueCorrection
+            CaptureStep.UP_TILT, CaptureStep.DOWN_TILT -> tiltCorrection
+            CaptureStep.FRONT_PALM -> 1.0
+        }
 }
