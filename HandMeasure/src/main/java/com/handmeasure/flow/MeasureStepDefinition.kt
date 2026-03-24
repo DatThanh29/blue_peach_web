@@ -1,18 +1,9 @@
 package com.handmeasure.flow
 
 import com.handmeasure.api.CaptureStep
+import com.handmeasure.protocol.ProtocolStepRole
 
 data class MeasureStepDefinition(
     val step: CaptureStep,
+    val role: ProtocolStepRole,
 )
-
-object GuidedSteps {
-    val all =
-        listOf(
-            MeasureStepDefinition(CaptureStep.FRONT_PALM),
-            MeasureStepDefinition(CaptureStep.LEFT_OBLIQUE),
-            MeasureStepDefinition(CaptureStep.RIGHT_OBLIQUE),
-            MeasureStepDefinition(CaptureStep.UP_TILT),
-            MeasureStepDefinition(CaptureStep.DOWN_TILT),
-        )
-}

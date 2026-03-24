@@ -2,6 +2,7 @@ package com.handmeasure.coordinator
 
 import android.graphics.Bitmap
 import com.handmeasure.api.CalibrationStatus
+import com.handmeasure.api.CaptureProtocol
 import com.handmeasure.api.CapturedStepInfo
 import com.handmeasure.api.DebugMetadata
 import com.handmeasure.api.FusedDiagnostics
@@ -11,6 +12,7 @@ import com.handmeasure.api.SessionDiagnostics
 import com.handmeasure.api.StepDiagnostics
 import com.handmeasure.flow.CaptureUiState
 import com.handmeasure.flow.HandMeasureStateMachine
+import com.handmeasure.flow.ProtocolGuides
 import com.handmeasure.flow.StepCandidate
 import com.handmeasure.measurement.FingerMeasurementEngine
 import com.handmeasure.measurement.FingerMeasurementFusion
@@ -19,6 +21,9 @@ import com.handmeasure.measurement.FrameQualityScorer
 import com.handmeasure.measurement.ResultReliabilityPolicy
 import com.handmeasure.measurement.ScaleCalibrator
 import com.handmeasure.measurement.TableRingSizeMapper
+import com.handmeasure.protocol.CaptureProtocols
+import com.handmeasure.protocol.ProtocolStepRole
+import com.handmeasure.protocol.role
 import com.handmeasure.vision.CardDetection
 import com.handmeasure.vision.HandDetection
 import com.handmeasure.vision.HandLandmarkEngine
@@ -59,7 +64,8 @@ class HandMeasureCoordinator(
     private val debugExportDirProvider: (() -> File?)? = null,
     private val poseGuidanceHintTextResolver: PoseGuidanceHintTextResolver? = null,
 ) {
-    private val stateMachine = HandMeasureStateMachine(config.qualityThresholds)
+    private val protocolSteps = CaptureProtocols.steps(config.protocol).associateBy { it.step }
+    private val stateMachine = HandMeasureStateMachine(config.qualityThresholds, ProtocolGuides.steps(config.protocol))
     private val ringSizeMapper = TableRingSizeMapper()
     private var previousStep = stateMachine.currentStep().step
 
@@ -76,6 +82,7 @@ class HandMeasureCoordinator(
             fingerMeasurementEngine = fingerMeasurementEngine,
             frameSignalEstimator = frameSignalEstimator,
             frameAnnotator = debugFrameAnnotator,
+            poseTargets = protocolSteps.mapValues { it.value.poseTarget },
         )
     private val debugSessionExporter = DebugSessionExporter(config, debugExportDirProvider)
 
@@ -83,6 +90,7 @@ class HandMeasureCoordinator(
 
     fun analyzeFrame(jpegBytes: ByteArray, bitmap: Bitmap): LiveAnalysisState {
         val currentStep = stateMachine.currentStep()
+        val protocolStep = protocolSteps[currentStep.step]
         if (previousStep != currentStep.step) {
             poseClassifier.reset()
             frameSignalEstimator.resetTemporalState()
@@ -91,7 +99,7 @@ class HandMeasureCoordinator(
 
         val hand = handLandmarkEngine.detect(bitmap)
         val card = referenceCardDetector.detect(bitmap)
-        val poseEvaluation = hand?.let { poseClassifier.evaluate(currentStep.step, it) }
+        val poseEvaluation = hand?.let { ps -> protocolStep?.poseTarget?.let { target -> poseClassifier.evaluate(target, ps) } }
         val ringZoneScore = if (hand?.fingerJointPair(config.targetFinger) != null) 1f else 0f
         val imageSignals = frameSignalEstimator.estimate(bitmap, hand, card, config.targetFinger)
         val coplanarityProxyScore =

@@ -1,10 +1,10 @@
 package com.handmeasure.measurement
 
 import android.graphics.BitmapFactory
-import com.handmeasure.api.CaptureStep
 import com.handmeasure.api.HandMeasureConfig
 import com.handmeasure.api.HandMeasureResult
 import com.handmeasure.coordinator.HandMeasureCoordinator
+import com.handmeasure.protocol.CaptureProtocols
 import org.json.JSONObject
 import java.io.File
 
@@ -34,7 +34,8 @@ class MeasurementReplayRunner(
         outputReportFile: File? = null,
     ): ReplayOutput {
         val coordinator = coordinatorFactory(config)
-        CaptureStep.entries.forEach { step ->
+        CaptureProtocols.steps(config.protocol).forEach { protocolStep ->
+            val step = protocolStep.step
             val frameFile = resolveStepFile(inputDir, step) ?: return@forEach
             val bytes = frameFile.readBytes()
             val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@forEach
@@ -77,13 +78,22 @@ class MeasurementReplayRunner(
         }.getOrNull()
     }
 
-    private fun resolveStepFile(inputDir: File, step: CaptureStep): File? {
+    private fun resolveStepFile(inputDir: File, step: com.handmeasure.api.CaptureStep): File? {
         val names =
-            listOf(
-                "${step.name.lowercase()}.jpg",
-                "${step.name.lowercase()}.jpeg",
-                "${step.name.lowercase()}.png",
-            )
+            buildList {
+                add("${step.name.lowercase()}.jpg")
+                add("${step.name.lowercase()}.jpeg")
+                add("${step.name.lowercase()}.png")
+                // compatibility with legacy palmar naming for dorsal default
+                when (step) {
+                    com.handmeasure.api.CaptureStep.BACK_OF_HAND -> add("front_palm.jpg")
+                    com.handmeasure.api.CaptureStep.LEFT_OBLIQUE_DORSAL -> add("left_oblique.jpg")
+                    com.handmeasure.api.CaptureStep.RIGHT_OBLIQUE_DORSAL -> add("right_oblique.jpg")
+                    com.handmeasure.api.CaptureStep.UP_TILT_DORSAL -> add("up_tilt.jpg")
+                    com.handmeasure.api.CaptureStep.DOWN_TILT_DORSAL -> add("down_tilt.jpg")
+                    else -> {}
+                }
+            }
         return names.map { File(inputDir, it) }.firstOrNull { it.exists() }
     }
 }

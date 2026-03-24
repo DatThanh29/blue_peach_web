@@ -31,7 +31,7 @@ subprojects {
             android.set(true)
             ignoreFailures.set(false)
             outputToConsole.set(true)
-            baseline.set(file("$projectDir/ktlint-baseline.xml"))
+            baseline.set(file("$rootDir/config/ktlint/baseline.xml"))
             filter {
                 exclude("**/generated/**")
                 exclude("**/build/**")

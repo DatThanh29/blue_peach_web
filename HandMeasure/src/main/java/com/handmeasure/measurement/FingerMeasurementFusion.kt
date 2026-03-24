@@ -2,20 +2,23 @@ package com.handmeasure.measurement
 
 import com.handmeasure.api.CaptureStep
 import com.handmeasure.api.HandMeasureWarning
+import com.handmeasure.protocol.ProtocolStepRole
+import com.handmeasure.protocol.role
 import kotlin.math.abs
 
 class FingerMeasurementFusion {
     private val policy = ThicknessEstimationPolicy()
 
     fun fuse(measurements: List<StepMeasurement>): FusedFingerMeasurement {
+        if (measurements.isEmpty()) return fallbackMeasurement()
+
         val frontal =
-            measurements.firstOrNull { it.step == CaptureStep.FRONT_PALM }
-                ?: measurements.maxByOrNull { it.confidence }
-                ?: StepMeasurement(CaptureStep.FRONT_PALM, widthMm = 18.0, confidence = 0.2f)
+            measurements.firstOrNull { it.step.role() == ProtocolStepRole.FRONTAL }
+                ?: measurements.maxByOrNull { it.confidence }!!
 
         val sideSteps =
             measurements
-                .filter { it.step != CaptureStep.FRONT_PALM }
+                .filter { it.step.role() != ProtocolStepRole.FRONTAL }
                 .associateBy { it.step }
 
         val sideCandidates =
@@ -88,6 +91,19 @@ class FingerMeasurementFusion {
         )
     }
 
+    private fun fallbackMeasurement(): FusedFingerMeasurement =
+        FusedFingerMeasurement(
+            widthMm = 18.0,
+            thicknessMm = 14.0,
+            circumferenceMm = EllipseMath.circumferenceFromWidthThickness(18.0, 14.0),
+            equivalentDiameterMm = EllipseMath.equivalentDiameterFromCircumference(
+                EllipseMath.circumferenceFromWidthThickness(18.0, 14.0),
+            ),
+            confidenceScore = 0.2f,
+            warnings = listOf(HandMeasureWarning.BEST_EFFORT_ESTIMATE),
+            debugNotes = listOf("fallback=no_steps"),
+        )
+
     private fun rejectOutlierThickness(candidates: List<WeightedThickness>): List<WeightedThickness> {
         if (candidates.size <= 2) return candidates
         val med = weightedMedian(candidates)
@@ -110,10 +126,10 @@ class FingerMeasurementFusion {
     private fun buildSymmetryPenalties(
         sideSteps: Map<CaptureStep, StepMeasurement>,
     ): SymmetryPenalties {
-        val left = sideSteps[CaptureStep.LEFT_OBLIQUE]?.widthMm
-        val right = sideSteps[CaptureStep.RIGHT_OBLIQUE]?.widthMm
-        val up = sideSteps[CaptureStep.UP_TILT]?.widthMm
-        val down = sideSteps[CaptureStep.DOWN_TILT]?.widthMm
+        val left = sideSteps.keys.firstOrNull { it.role() == ProtocolStepRole.LEFT_OBLIQUE }?.let { sideSteps[it]?.widthMm }
+        val right = sideSteps.keys.firstOrNull { it.role() == ProtocolStepRole.RIGHT_OBLIQUE }?.let { sideSteps[it]?.widthMm }
+        val up = sideSteps.keys.firstOrNull { it.role() == ProtocolStepRole.TILT_UP }?.let { sideSteps[it]?.widthMm }
+        val down = sideSteps.keys.firstOrNull { it.role() == ProtocolStepRole.TILT_DOWN }?.let { sideSteps[it]?.widthMm }
         val leftRightPenalty = pairPenalty(left, right)
         val upDownPenalty = pairPenalty(up, down)
         return SymmetryPenalties(
@@ -155,10 +171,10 @@ data class ThicknessEstimationPolicy(
     val frontalFallbackThicknessRatio: Double = 0.80,
     val minThicknessCandidatesForStableEstimate: Int = 2,
 ) {
-    fun thicknessCorrection(step: CaptureStep): Double =
-        when (step) {
-            CaptureStep.LEFT_OBLIQUE, CaptureStep.RIGHT_OBLIQUE -> obliqueCorrection
-            CaptureStep.UP_TILT, CaptureStep.DOWN_TILT -> tiltCorrection
-            CaptureStep.FRONT_PALM -> 1.0
+    fun thicknessCorrection(step: com.handmeasure.api.CaptureStep): Double =
+        when (step.role()) {
+            ProtocolStepRole.LEFT_OBLIQUE, ProtocolStepRole.RIGHT_OBLIQUE -> obliqueCorrection
+            ProtocolStepRole.TILT_UP, ProtocolStepRole.TILT_DOWN -> tiltCorrection
+            ProtocolStepRole.FRONTAL -> 1.0
         }
 }

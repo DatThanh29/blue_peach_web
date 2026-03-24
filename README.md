@@ -69,7 +69,15 @@ launcher.launch(
 
 ## Capture flow
 
-The library guides the user through:
+### Default (privacy-first) dorsal protocol
+
+1. `BACK_OF_HAND`
+2. `LEFT_OBLIQUE_DORSAL`
+3. `RIGHT_OBLIQUE_DORSAL`
+4. `UP_TILT_DORSAL`
+5. `DOWN_TILT_DORSAL`
+
+### Legacy palmar protocol (migration/benchmark)
 
 1. `FRONT_PALM`
 2. `LEFT_OBLIQUE`

@@ -12,6 +12,17 @@
     <string name="step_up_tilt_hint">Tilt your hand upward to reveal finger thickness.</string>
     <string name="step_down_tilt_hint">Tilt your hand downward for the final angle.</string>
 
+    <string name="step_back_of_hand_title">Back of hand</string>
+    <string name="step_back_of_hand_hint">Show the back of your hand with the card near the ring finger.</string>
+    <string name="step_left_oblique_dorsal_title">Left oblique (dorsal)</string>
+    <string name="step_left_oblique_dorsal_hint">Rotate the back of your hand slightly left.</string>
+    <string name="step_right_oblique_dorsal_title">Right oblique (dorsal)</string>
+    <string name="step_right_oblique_dorsal_hint">Rotate the back of your hand slightly right.</string>
+    <string name="step_up_tilt_dorsal_title">Up tilt (dorsal)</string>
+    <string name="step_up_tilt_dorsal_hint">Tilt the back of your hand upward to reveal thickness.</string>
+    <string name="step_down_tilt_dorsal_title">Down tilt (dorsal)</string>
+    <string name="step_down_tilt_dorsal_hint">Tilt the back of your hand downward to complete the set.</string>
+
     <string name="pose_hint_place_hand_in_frame">Place your hand in frame.</string>
     <string name="pose_hint_place_card_near_finger">Place the card near your finger.</string>
     <string name="pose_hint_adjust_hand_pose">Adjust hand pose.</string>

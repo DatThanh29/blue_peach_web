@@ -140,4 +140,9 @@ enum class CaptureStep : Parcelable {
     RIGHT_OBLIQUE,
     UP_TILT,
     DOWN_TILT,
+    BACK_OF_HAND,
+    LEFT_OBLIQUE_DORSAL,
+    RIGHT_OBLIQUE_DORSAL,
+    UP_TILT_DORSAL,
+    DOWN_TILT_DORSAL,
 }

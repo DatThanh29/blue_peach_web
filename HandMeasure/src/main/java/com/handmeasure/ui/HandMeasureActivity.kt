@@ -66,7 +66,6 @@ import com.handmeasure.coordinator.LiveAnalysisState
 import com.handmeasure.coordinator.PoseGuidanceHintKey
 import com.handmeasure.coordinator.PoseGuidanceHintTextResolver
 import com.handmeasure.flow.CaptureUiState
-import com.handmeasure.flow.GuidedSteps
 import com.handmeasure.measurement.MeasurementReplayRunner
 import com.handmeasure.vision.MediaPipeHandLandmarkEngine
 import kotlinx.coroutines.Dispatchers
@@ -363,7 +362,7 @@ private fun StatusPanel(
         LinearProgressIndicator(progress = { captureState.progressFraction }, modifier = Modifier.fillMaxWidth())
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Completed ${captureState.completedSteps.size}/${GuidedSteps.all.size} steps",
+            text = "Completed ${captureState.completedSteps.size}/${captureState.totalSteps} steps",
             color = Color.White,
             style = MaterialTheme.typography.bodyMedium,
         )
@@ -446,6 +445,11 @@ private fun CaptureStep.titleResId(): Int =
         CaptureStep.RIGHT_OBLIQUE -> R.string.step_right_oblique_title
         CaptureStep.UP_TILT -> R.string.step_up_tilt_title
         CaptureStep.DOWN_TILT -> R.string.step_down_tilt_title
+        CaptureStep.BACK_OF_HAND -> R.string.step_back_of_hand_title
+        CaptureStep.LEFT_OBLIQUE_DORSAL -> R.string.step_left_oblique_dorsal_title
+        CaptureStep.RIGHT_OBLIQUE_DORSAL -> R.string.step_right_oblique_dorsal_title
+        CaptureStep.UP_TILT_DORSAL -> R.string.step_up_tilt_dorsal_title
+        CaptureStep.DOWN_TILT_DORSAL -> R.string.step_down_tilt_dorsal_title
     }
 
 private fun CaptureStep.hintResId(): Int =
@@ -455,6 +459,11 @@ private fun CaptureStep.hintResId(): Int =
         CaptureStep.RIGHT_OBLIQUE -> R.string.step_right_oblique_hint
         CaptureStep.UP_TILT -> R.string.step_up_tilt_hint
         CaptureStep.DOWN_TILT -> R.string.step_down_tilt_hint
+        CaptureStep.BACK_OF_HAND -> R.string.step_back_of_hand_hint
+        CaptureStep.LEFT_OBLIQUE_DORSAL -> R.string.step_left_oblique_dorsal_hint
+        CaptureStep.RIGHT_OBLIQUE_DORSAL -> R.string.step_right_oblique_dorsal_hint
+        CaptureStep.UP_TILT_DORSAL -> R.string.step_up_tilt_dorsal_hint
+        CaptureStep.DOWN_TILT_DORSAL -> R.string.step_down_tilt_dorsal_hint
     }
 
 private fun PoseGuidanceHintKey.toResId(): Int =

@@ -2,6 +2,8 @@ package com.handmeasure.flow
 
 import com.handmeasure.api.CaptureStep
 import com.handmeasure.api.QualityThresholds
+import com.handmeasure.flow.ProtocolGuides.steps
+import com.handmeasure.api.CaptureProtocol
 
 data class StepCandidate(
     val step: CaptureStep,
@@ -23,11 +25,12 @@ data class CaptureUiState(
     val progressFraction: Float,
     val canAdvanceWithBest: Boolean,
     val isFlowComplete: Boolean,
+    val totalSteps: Int,
 )
 
 class HandMeasureStateMachine(
     private val thresholds: QualityThresholds,
-    private val stepDefinitions: List<MeasureStepDefinition> = GuidedSteps.all,
+    private val stepDefinitions: List<MeasureStepDefinition> = ProtocolGuides.steps(CaptureProtocol.DORSAL_V1),
 ) {
     private var currentStepIndex = 0
     private var bestCandidate: StepCandidate? = null
@@ -81,5 +84,6 @@ class HandMeasureStateMachine(
             canAdvanceWithBest =
                 bestCandidate?.qualityScore?.let { it >= thresholds.bestCandidateProgressScore } == true,
             isFlowComplete = isComplete(),
+            totalSteps = stepDefinitions.size,
         )
 }

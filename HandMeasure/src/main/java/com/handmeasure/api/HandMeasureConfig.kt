@@ -12,6 +12,7 @@ data class HandMeasureConfig(
     val qualityThresholds: QualityThresholds = QualityThresholds(),
     val ringSizeTable: RingSizeTable = RingSizeTable.sampleUsLike(),
     val lensFacing: LensFacing = LensFacing.BACK,
+    val protocol: CaptureProtocol = CaptureProtocol.DORSAL_V1,
 ) : Parcelable
 
 @Parcelize
@@ -38,4 +39,10 @@ enum class TargetFinger : Parcelable {
 enum class LensFacing : Parcelable {
     BACK,
     FRONT,
+}
+
+@Parcelize
+enum class CaptureProtocol : Parcelable {
+    DORSAL_V1,
+    PALMAR_V1,
 }

@@ -1,7 +1,7 @@
 package com.handmeasure.vision
 
 import com.google.common.truth.Truth.assertThat
-import com.handmeasure.api.CaptureStep
+import com.handmeasure.coordinator.PoseTarget
 import org.junit.Test
 
 class PoseClassifierTest {
@@ -11,7 +11,7 @@ class PoseClassifierTest {
     fun classify_frontPalm_prefersZDominantNormal() {
         val score =
             classifier.classify(
-                CaptureStep.FRONT_PALM,
+                PoseTarget(0f, 0f, 1f),
                 PoseSnapshot(normalX = 0.1f, normalY = 0.1f, normalZ = 0.95f),
             )
 
@@ -22,7 +22,7 @@ class PoseClassifierTest {
     fun classify_leftOblique_prefersNegativeXNormal() {
         val score =
             classifier.classify(
-                CaptureStep.LEFT_OBLIQUE,
+                PoseTarget(-0.55f, 0f, 0.85f),
                 PoseSnapshot(normalX = -0.85f, normalY = 0.05f, normalZ = 0.25f),
             )
 
@@ -46,7 +46,7 @@ class PoseClassifierTest {
                 handedness = "Left",
                 confidence = 0.8f,
             )
-        val evaluation = classifier.evaluate(CaptureStep.LEFT_OBLIQUE, hand)
+        val evaluation = classifier.evaluate(PoseTarget(-0.55f, 0f, 0.85f), hand)
 
         assertThat(evaluation.smoothedScore).isLessThan(0.5f)
         assertThat(evaluation.guidanceAction).isNotNull()

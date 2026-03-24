@@ -48,7 +48,9 @@ class MainActivity : ComponentActivity() {
                                 if (result == null) {
                                     "No result yet"
                                 } else {
-                                    "Ring: ${result!!.suggestedRingSizeLabel} | diameter=${"%.2f".format(result!!.equivalentDiameterMm)} mm | confidence=${"%.2f".format(result!!.confidenceScore)}"
+                                    val diameter = "%.2f".format(result!!.equivalentDiameterMm)
+                                    val confidence = "%.2f".format(result!!.confidenceScore)
+                                    "Ring: ${result!!.suggestedRingSizeLabel} | diameter=$diameter mm | confidence=$confidence"
                                 },
                         )
                     }

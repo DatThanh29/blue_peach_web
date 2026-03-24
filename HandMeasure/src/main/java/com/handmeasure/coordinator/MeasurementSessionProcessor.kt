@@ -39,6 +39,7 @@ internal class MeasurementSessionProcessor(
     private val fingerMeasurementEngine: FingerMeasurementEngine,
     private val frameSignalEstimator: FrameSignalEstimator,
     private val frameAnnotator: DebugFrameAnnotator,
+    private val poseTargets: Map<CaptureStep, PoseTarget>,
 ) {
     fun process(stepResults: List<StepCandidate>): SessionProcessingOutput {
         val warnings = mutableSetOf<HandMeasureWarning>()
@@ -58,7 +59,7 @@ internal class MeasurementSessionProcessor(
             try {
                 val hand = handLandmarkEngine.detect(bitmap)
                 val card = referenceCardDetector.detect(bitmap)
-                val poseScore = hand?.let { poseClassifier.classify(candidate.step, it) } ?: candidate.poseScore
+                val poseScore = hand?.let { poseTargets[candidate.step]?.let { target -> poseClassifier.classify(target, it) } } ?: candidate.poseScore
                 val coplanarityProxyScore =
                     frameSignalEstimator.estimateFingerCard2dProximity(
                         hand = hand,

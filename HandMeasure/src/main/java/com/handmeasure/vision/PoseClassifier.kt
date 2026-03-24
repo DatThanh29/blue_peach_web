@@ -1,6 +1,6 @@
 package com.handmeasure.vision
 
-import com.handmeasure.api.CaptureStep
+import com.handmeasure.coordinator.PoseTarget
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -43,27 +43,20 @@ class PoseClassifier {
         lastStableScore = 0f
     }
 
-    fun classify(step: CaptureStep, handDetection: HandDetection): Float {
+    fun classify(target: PoseTarget, handDetection: HandDetection): Float {
         val snapshot = extractPalmNormal(handDetection) ?: return 0f
-        return classify(step, snapshot)
+        return classify(target, snapshot)
     }
 
-    fun classify(step: CaptureStep, snapshot: PoseSnapshot): Float {
-        val nx = snapshot.normalX
-        val ny = snapshot.normalY
-        val nz = snapshot.normalZ
-        return when (step) {
-            CaptureStep.FRONT_PALM -> axisDominanceScore(abs(nz), abs(nx), abs(ny))
-            CaptureStep.LEFT_OBLIQUE -> signedAxisScore(-nx, abs(ny), abs(nz))
-            CaptureStep.RIGHT_OBLIQUE -> signedAxisScore(nx, abs(ny), abs(nz))
-            CaptureStep.UP_TILT -> signedAxisScore(-ny, abs(nx), abs(nz))
-            CaptureStep.DOWN_TILT -> signedAxisScore(ny, abs(nx), abs(nz))
-        }
+    fun classify(target: PoseTarget, snapshot: PoseSnapshot): Float {
+        val norm = normalize(snapshot)
+        val dot = norm.normalX * target.nx + norm.normalY * target.ny + norm.normalZ * target.nz
+        return ((dot + 1f) / 2f).coerceIn(0f, 1f)
     }
 
-    fun evaluate(step: CaptureStep, handDetection: HandDetection): PoseEvaluation {
+    fun evaluate(target: PoseTarget, handDetection: HandDetection): PoseEvaluation {
         val snapshot = extractPalmNormal(handDetection)
-        val rawScore = if (snapshot == null) 0f else classify(step, snapshot)
+        val rawScore = if (snapshot == null) 0f else classify(target, snapshot)
         val smoothed = updateSmoothedScore(rawScore)
         val level =
             when {
@@ -75,7 +68,7 @@ class PoseClassifier {
             rawScore = rawScore,
             smoothedScore = smoothed,
             level = level,
-            guidanceAction = buildGuidanceAction(step, snapshot, level),
+            guidanceAction = buildGuidanceAction(target, snapshot, level),
         )
     }
 
@@ -98,15 +91,9 @@ class PoseClassifier {
         return PoseSnapshot(nx / mag, ny / mag, nz / mag)
     }
 
-    private fun axisDominanceScore(primary: Float, secondaryA: Float, secondaryB: Float): Float {
-        val dominance = (primary - maxOf(secondaryA, secondaryB)).coerceAtLeast(0f)
-        return (primary * 0.75f + dominance * 0.25f).coerceIn(0f, 1f)
-    }
-
-    private fun signedAxisScore(primarySigned: Float, secondaryA: Float, secondaryB: Float): Float {
-        val primary = primarySigned.coerceAtLeast(0f)
-        val dominance = (primary - maxOf(secondaryA, secondaryB)).coerceAtLeast(0f)
-        return (primary * 0.75f + dominance * 0.25f).coerceIn(0f, 1f)
+    private fun normalize(snapshot: PoseSnapshot): PoseSnapshot {
+        val mag = sqrt(snapshot.normalX * snapshot.normalX + snapshot.normalY * snapshot.normalY + snapshot.normalZ * snapshot.normalZ).coerceAtLeast(1e-6f)
+        return PoseSnapshot(snapshot.normalX / mag, snapshot.normalY / mag, snapshot.normalZ / mag)
     }
 
     private fun updateSmoothedScore(rawScore: Float): Float {
@@ -121,24 +108,25 @@ class PoseClassifier {
     }
 
     private fun buildGuidanceAction(
-        step: CaptureStep,
+        target: PoseTarget,
         snapshot: PoseSnapshot?,
         level: PoseMatchLevel,
     ): PoseGuidanceAction? {
         if (level == PoseMatchLevel.CORRECT) return null
         if (snapshot == null) return PoseGuidanceAction.FRAME_HAND_CLEARER
-        val nx = snapshot.normalX
-        val ny = snapshot.normalY
-        return when (step) {
-            CaptureStep.LEFT_OBLIQUE ->
-                if (nx > -0.35f) PoseGuidanceAction.ROTATE_LEFT_MORE else PoseGuidanceAction.HOLD_STEADY
-            CaptureStep.RIGHT_OBLIQUE ->
-                if (nx < 0.35f) PoseGuidanceAction.ROTATE_RIGHT_MORE else PoseGuidanceAction.HOLD_STEADY
-            CaptureStep.UP_TILT ->
-                if (ny > -0.35f) PoseGuidanceAction.TILT_UP_MORE else PoseGuidanceAction.HOLD_STEADY
-            CaptureStep.DOWN_TILT ->
-                if (ny < 0.35f) PoseGuidanceAction.TILT_DOWN_MORE else PoseGuidanceAction.HOLD_STEADY
-            CaptureStep.FRONT_PALM -> PoseGuidanceAction.FACE_PALM_TO_CAMERA
+        val aligned = normalize(snapshot)
+        val dot = aligned.normalX * target.nx + aligned.normalY * target.ny + aligned.normalZ * target.nz
+        if (dot < 0.45f) {
+            val dx = aligned.normalX - target.nx
+            val dy = aligned.normalY - target.ny
+            return when {
+                dx > 0.12f -> PoseGuidanceAction.ROTATE_RIGHT_MORE
+                dx < -0.12f -> PoseGuidanceAction.ROTATE_LEFT_MORE
+                dy > 0.12f -> PoseGuidanceAction.TILT_DOWN_MORE
+                dy < -0.12f -> PoseGuidanceAction.TILT_UP_MORE
+                else -> PoseGuidanceAction.HOLD_STEADY
+            }
         }
+        return PoseGuidanceAction.HOLD_STEADY
     }
 }
