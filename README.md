@@ -236,3 +236,9 @@ For full protocol and metrics, see `VALIDATION_PLAN.md`.
 ## Architecture note
 
 For the refactor structure and component boundaries, see `docs/refactor-architecture-note.md`.
+
+## Ring try-on POC (single product)
+
+- Demo implementation: `:app` module, package `com.handmeasure.sample.tryon`
+- POC guide: `docs/tryon-poc.md`
+- Asset normalization guide: `docs/tryon-asset-normalization.md`
