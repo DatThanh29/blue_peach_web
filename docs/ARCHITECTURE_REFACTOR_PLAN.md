@@ -156,3 +156,27 @@ New unit tests in `:handmeasure-core`:
   - runtime engines and Android image types
   - MediaPipe/OpenCV execution
   - conversion from runtime outputs to core-neutral contracts
+
+## Phase 5 update: Android runtime adapter decomposition
+
+### Runtime hotspot split
+
+- `AndroidSessionRuntimeAnalyzerPort` is now a thin delegating composition layer.
+- Runtime responsibilities were split into focused adapters:
+  - `AndroidHandRuntimeAdapter`
+  - `AndroidCardRuntimeAdapter`
+  - `AndroidPoseRuntimeAdapter`
+  - `AndroidCoplanarityRuntimeAdapter`
+  - `AndroidScaleRuntimeAdapter`
+  - `AndroidFingerRuntimeAdapter`
+  - `AndroidOverlayRuntimeAdapter`
+
+### Assembly wiring
+
+- Added `AndroidSessionRuntimeAnalyzerFactory` to keep construction out of higher-level processor logic.
+- `MeasurementSessionProcessor` now requests a composed runtime analyzer from the factory.
+
+### Boundary state
+
+- Core contracts/orchestration stay unchanged in this phase.
+- Android runtime remains Android-only by design (Bitmap + MediaPipe/OpenCV + debug overlay rendering), but now in smaller testable units.

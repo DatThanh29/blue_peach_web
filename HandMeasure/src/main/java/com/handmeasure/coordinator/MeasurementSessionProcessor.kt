@@ -42,7 +42,7 @@ internal class MeasurementSessionProcessor(
 ) {
     private val mapper = AndroidSessionProcessingMapper()
     private val runtimeAnalyzerPort =
-        AndroidSessionRuntimeAnalyzerPort(
+        AndroidSessionRuntimeAnalyzerFactory.create(
             handLandmarkEngine = handLandmarkEngine,
             referenceCardDetector = referenceCardDetector,
             poseClassifier = poseClassifier,
