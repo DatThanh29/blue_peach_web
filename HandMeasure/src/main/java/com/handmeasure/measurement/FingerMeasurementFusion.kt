@@ -2,167 +2,21 @@ package com.handmeasure.measurement
 
 import com.handmeasure.api.CaptureStep
 import com.handmeasure.api.HandMeasureWarning
-import com.handmeasure.protocol.ProtocolStepRole
-import com.handmeasure.protocol.role
-import kotlin.math.abs
+import com.handmeasure.core.measurement.CaptureStep as CoreCaptureStep
+import com.handmeasure.core.measurement.FingerMeasurementFusion as CoreFingerMeasurementFusion
+import com.handmeasure.core.measurement.FusedFingerMeasurement as CoreFusedFingerMeasurement
+import com.handmeasure.core.measurement.HandMeasureWarning as CoreHandMeasureWarning
+import com.handmeasure.core.measurement.StepMeasurement as CoreStepMeasurement
+import com.handmeasure.core.measurement.ThicknessEstimationPolicy as CoreThicknessEstimationPolicy
+import com.handmeasure.core.measurement.WidthMeasurementSource as CoreWidthMeasurementSource
 
-class FingerMeasurementFusion {
-    private val policy = ThicknessEstimationPolicy()
-
-    fun fuse(measurements: List<StepMeasurement>): FusedFingerMeasurement {
-        if (measurements.isEmpty()) return fallbackMeasurement()
-
-        val frontal =
-            measurements.firstOrNull { it.step.role() == ProtocolStepRole.FRONTAL }
-                ?: measurements.maxByOrNull { it.confidence }!!
-
-        val sideSteps =
-            measurements
-                .filter { it.step.role() != ProtocolStepRole.FRONTAL }
-                .associateBy { it.step }
-
-        val sideCandidates =
-            sideSteps.values.map { step ->
-                val correction = policy.thicknessCorrection(step.step)
-                WeightedThickness(
-                    source = step.step,
-                    thicknessMm = step.widthMm * correction,
-                    weight = (step.confidence * 0.6f + step.measurementConfidence * 0.4f).coerceAtLeast(0.05f),
-                    measurementSource = step.measurementSource,
-                )
-            }
-
-        val robustCandidates = rejectOutlierThickness(sideCandidates)
-        val thicknessMm =
-            if (robustCandidates.isEmpty()) {
-                frontal.widthMm * policy.frontalFallbackThicknessRatio
-            } else {
-                weightedMedian(robustCandidates)
-            }
-
-        val symmetryPenalties = buildSymmetryPenalties(sideSteps)
-        val residuals = robustCandidates.map { it.thicknessMm - thicknessMm }
-        val circumferenceMm = EllipseMath.circumferenceFromWidthThickness(frontal.widthMm, thicknessMm)
-        val diameterMm = EllipseMath.equivalentDiameterFromCircumference(circumferenceMm)
-
-        val detectionConfidence = measurements.map { it.confidence }.average().toFloat().coerceIn(0f, 1f)
-        val poseConfidence = measurements.map { (it.confidence * 0.7f + it.measurementConfidence * 0.3f) }.average().toFloat().coerceIn(0f, 1f)
-        val measurementConfidence =
-            (
-                robustCandidates.map { it.weight.toDouble() }.average().toFloat().coerceAtLeast(0f) *
-                    (1f - symmetryPenalties.totalPenalty).coerceIn(0.4f, 1f)
-            ).coerceIn(0f, 1f)
-        val finalConfidence =
-            (
-                detectionConfidence * 0.30f +
-                    poseConfidence * 0.25f +
-                    measurementConfidence * 0.45f
-            ).coerceIn(0f, 1f)
-
-        val warnings = buildList {
-            if (finalConfidence < 0.65f) add(HandMeasureWarning.BEST_EFFORT_ESTIMATE)
-            if (sideCandidates.size < policy.minThicknessCandidatesForStableEstimate) add(HandMeasureWarning.THICKNESS_ESTIMATED_FROM_WEAK_ANGLES)
-            if (symmetryPenalties.leftRightPenalty > 0.10f || symmetryPenalties.upDownPenalty > 0.10f) {
-                add(HandMeasureWarning.THICKNESS_ESTIMATED_FROM_WEAK_ANGLES)
-            }
-        }.distinct()
-
-        val debugNotes =
-            buildList {
-                add("thicknessCandidates=${sideCandidates.joinToString { "${it.source}:${"%.2f".format(it.thicknessMm)}@${"%.2f".format(it.weight)}" }}")
-                add("thicknessSourceKinds=${sideCandidates.joinToString { "${it.source}:${it.measurementSource}" }}")
-                add("leftRightPenalty=${"%.3f".format(symmetryPenalties.leftRightPenalty)}")
-                add("upDownPenalty=${"%.3f".format(symmetryPenalties.upDownPenalty)}")
-                addAll(symmetryPenalties.notes)
-            }
-
-        return FusedFingerMeasurement(
-            widthMm = frontal.widthMm,
-            thicknessMm = thicknessMm,
-            circumferenceMm = circumferenceMm,
-            equivalentDiameterMm = diameterMm,
-            confidenceScore = finalConfidence,
-            warnings = warnings,
-            debugNotes = debugNotes,
-            perStepResidualsMm = residuals,
-            detectionConfidence = detectionConfidence,
-            poseConfidence = poseConfidence,
-            measurementConfidence = measurementConfidence,
-        )
-    }
-
-    private fun fallbackMeasurement(): FusedFingerMeasurement =
-        FusedFingerMeasurement(
-            widthMm = 18.0,
-            thicknessMm = 14.0,
-            circumferenceMm = EllipseMath.circumferenceFromWidthThickness(18.0, 14.0),
-            equivalentDiameterMm = EllipseMath.equivalentDiameterFromCircumference(
-                EllipseMath.circumferenceFromWidthThickness(18.0, 14.0),
-            ),
-            confidenceScore = 0.2f,
-            warnings = listOf(HandMeasureWarning.BEST_EFFORT_ESTIMATE),
-            debugNotes = listOf("fallback=no_steps"),
-        )
-
-    private fun rejectOutlierThickness(candidates: List<WeightedThickness>): List<WeightedThickness> {
-        if (candidates.size <= 2) return candidates
-        val med = weightedMedian(candidates)
-        val allowed = maxOf(0.55, med * 0.2)
-        return candidates.filter { abs(it.thicknessMm - med) <= allowed }
-    }
-
-    private fun weightedMedian(candidates: List<WeightedThickness>): Double {
-        if (candidates.isEmpty()) return 0.0
-        val sorted = candidates.sortedBy { it.thicknessMm }
-        val totalWeight = sorted.sumOf { it.weight.toDouble() }.coerceAtLeast(1e-6)
-        var cumulative = 0.0
-        for (entry in sorted) {
-            cumulative += entry.weight
-            if (cumulative >= totalWeight / 2.0) return entry.thicknessMm
-        }
-        return sorted.last().thicknessMm
-    }
-
-    private fun buildSymmetryPenalties(
-        sideSteps: Map<CaptureStep, StepMeasurement>,
-    ): SymmetryPenalties {
-        val left = sideSteps.keys.firstOrNull { it.role() == ProtocolStepRole.LEFT_OBLIQUE }?.let { sideSteps[it]?.widthMm }
-        val right = sideSteps.keys.firstOrNull { it.role() == ProtocolStepRole.RIGHT_OBLIQUE }?.let { sideSteps[it]?.widthMm }
-        val up = sideSteps.keys.firstOrNull { it.role() == ProtocolStepRole.TILT_UP }?.let { sideSteps[it]?.widthMm }
-        val down = sideSteps.keys.firstOrNull { it.role() == ProtocolStepRole.TILT_DOWN }?.let { sideSteps[it]?.widthMm }
-        val leftRightPenalty = pairPenalty(left, right)
-        val upDownPenalty = pairPenalty(up, down)
-        return SymmetryPenalties(
-            leftRightPenalty = leftRightPenalty,
-            upDownPenalty = upDownPenalty,
-            totalPenalty = (leftRightPenalty + upDownPenalty).coerceIn(0f, 0.35f),
-            notes =
-                listOfNotNull(
-                    if (left != null && right != null) "leftRightResidual=${"%.3f".format(abs(left - right))}" else null,
-                    if (up != null && down != null) "upDownResidual=${"%.3f".format(abs(up - down))}" else null,
-                ),
-        )
-    }
-
-    private fun pairPenalty(a: Double?, b: Double?): Float {
-        if (a == null || b == null) return 0.06f
-        val denom = maxOf((a + b) / 2.0, 1.0)
-        return (abs(a - b) / denom).toFloat().coerceIn(0f, 0.18f)
-    }
-
-    private data class WeightedThickness(
-        val source: CaptureStep,
-        val thicknessMm: Double,
-        val weight: Float,
-        val measurementSource: WidthMeasurementSource,
-    )
-
-    private data class SymmetryPenalties(
-        val leftRightPenalty: Float,
-        val upDownPenalty: Float,
-        val totalPenalty: Float,
-        val notes: List<String>,
-    )
+class FingerMeasurementFusion(
+    private val delegate: CoreFingerMeasurementFusion = CoreFingerMeasurementFusion(),
+) {
+    fun fuse(measurements: List<StepMeasurement>): FusedFingerMeasurement =
+        delegate
+            .fuse(measurements.map { it.toCore() })
+            .toAndroidModel()
 }
 
 data class ThicknessEstimationPolicy(
@@ -171,10 +25,72 @@ data class ThicknessEstimationPolicy(
     val frontalFallbackThicknessRatio: Double = 0.80,
     val minThicknessCandidatesForStableEstimate: Int = 2,
 ) {
-    fun thicknessCorrection(step: com.handmeasure.api.CaptureStep): Double =
-        when (step.role()) {
-            ProtocolStepRole.LEFT_OBLIQUE, ProtocolStepRole.RIGHT_OBLIQUE -> obliqueCorrection
-            ProtocolStepRole.TILT_UP, ProtocolStepRole.TILT_DOWN -> tiltCorrection
-            ProtocolStepRole.FRONTAL -> 1.0
-        }
+    fun thicknessCorrection(step: CaptureStep): Double =
+        CoreThicknessEstimationPolicy(
+            obliqueCorrection = obliqueCorrection,
+            tiltCorrection = tiltCorrection,
+            frontalFallbackThicknessRatio = frontalFallbackThicknessRatio,
+            minThicknessCandidatesForStableEstimate = minThicknessCandidatesForStableEstimate,
+        ).thicknessCorrection(step.toCore())
 }
+
+private fun StepMeasurement.toCore(): CoreStepMeasurement =
+    CoreStepMeasurement(
+        step = step.toCore(),
+        widthMm = widthMm,
+        confidence = confidence,
+        measurementConfidence = measurementConfidence,
+        rawWidthMm = rawWidthMm,
+        measurementSource = measurementSource.toCore(),
+        usedFallback = usedFallback,
+        debugNotes = debugNotes,
+    )
+
+private fun WidthMeasurementSource.toCore(): CoreWidthMeasurementSource =
+    when (this) {
+        WidthMeasurementSource.EDGE_PROFILE -> CoreWidthMeasurementSource.EDGE_PROFILE
+        WidthMeasurementSource.LANDMARK_HEURISTIC -> CoreWidthMeasurementSource.LANDMARK_HEURISTIC
+        WidthMeasurementSource.DEFAULT_HEURISTIC -> CoreWidthMeasurementSource.DEFAULT_HEURISTIC
+    }
+
+private fun CaptureStep.toCore(): CoreCaptureStep =
+    when (this) {
+        CaptureStep.FRONT_PALM -> CoreCaptureStep.FRONT_PALM
+        CaptureStep.LEFT_OBLIQUE -> CoreCaptureStep.LEFT_OBLIQUE
+        CaptureStep.RIGHT_OBLIQUE -> CoreCaptureStep.RIGHT_OBLIQUE
+        CaptureStep.UP_TILT -> CoreCaptureStep.UP_TILT
+        CaptureStep.DOWN_TILT -> CoreCaptureStep.DOWN_TILT
+        CaptureStep.BACK_OF_HAND -> CoreCaptureStep.BACK_OF_HAND
+        CaptureStep.LEFT_OBLIQUE_DORSAL -> CoreCaptureStep.LEFT_OBLIQUE_DORSAL
+        CaptureStep.RIGHT_OBLIQUE_DORSAL -> CoreCaptureStep.RIGHT_OBLIQUE_DORSAL
+        CaptureStep.UP_TILT_DORSAL -> CoreCaptureStep.UP_TILT_DORSAL
+        CaptureStep.DOWN_TILT_DORSAL -> CoreCaptureStep.DOWN_TILT_DORSAL
+    }
+
+private fun CoreFusedFingerMeasurement.toAndroidModel(): FusedFingerMeasurement =
+    FusedFingerMeasurement(
+        widthMm = widthMm,
+        thicknessMm = thicknessMm,
+        circumferenceMm = circumferenceMm,
+        equivalentDiameterMm = equivalentDiameterMm,
+        confidenceScore = confidenceScore,
+        warnings = warnings.map { it.toAndroidWarning() },
+        debugNotes = debugNotes,
+        perStepResidualsMm = perStepResidualsMm,
+        detectionConfidence = detectionConfidence,
+        poseConfidence = poseConfidence,
+        measurementConfidence = measurementConfidence,
+    )
+
+private fun CoreHandMeasureWarning.toAndroidWarning(): HandMeasureWarning =
+    when (this) {
+        CoreHandMeasureWarning.BEST_EFFORT_ESTIMATE -> HandMeasureWarning.BEST_EFFORT_ESTIMATE
+        CoreHandMeasureWarning.LOW_CARD_CONFIDENCE -> HandMeasureWarning.LOW_CARD_CONFIDENCE
+        CoreHandMeasureWarning.LOW_POSE_CONFIDENCE -> HandMeasureWarning.LOW_POSE_CONFIDENCE
+        CoreHandMeasureWarning.LOW_LIGHTING -> HandMeasureWarning.LOW_LIGHTING
+        CoreHandMeasureWarning.HIGH_MOTION -> HandMeasureWarning.HIGH_MOTION
+        CoreHandMeasureWarning.HIGH_BLUR -> HandMeasureWarning.HIGH_BLUR
+        CoreHandMeasureWarning.THICKNESS_ESTIMATED_FROM_WEAK_ANGLES -> HandMeasureWarning.THICKNESS_ESTIMATED_FROM_WEAK_ANGLES
+        CoreHandMeasureWarning.CALIBRATION_WEAK -> HandMeasureWarning.CALIBRATION_WEAK
+        CoreHandMeasureWarning.LOW_RESULT_RELIABILITY -> HandMeasureWarning.LOW_RESULT_RELIABILITY
+    }

@@ -15,6 +15,7 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "HandMeasureWorkspace"
+include(":handmeasure-core")
 include(":HandMeasure")
 include(":HandTryOn")
 include(":app")

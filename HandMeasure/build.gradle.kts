@@ -47,6 +47,7 @@ android {
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
 
+    implementation(project(":handmeasure-core"))
     implementation(composeBom)
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.core:core-ktx:1.15.0")

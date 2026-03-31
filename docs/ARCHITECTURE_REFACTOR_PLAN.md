@@ -1,0 +1,58 @@
+# HandMeasure Core Extraction (Phase 1)
+
+## Scope of this phase
+
+- Introduce a new platform-neutral module: `:handmeasure-core`.
+- Move low-risk, Android-free measurement and policy logic into core.
+- Keep `:HandMeasure` working as the Android-facing adapter layer.
+- Avoid broad package renames or UX/API redesign.
+
+## New module graph (current state)
+
+- `:handmeasure-core` (new Kotlin/JVM module)
+- `:HandMeasure` now depends on `:handmeasure-core`
+- `:app` continues to depend on `:HandMeasure` and `:HandTryOn`
+
+## Logic moved to `:handmeasure-core`
+
+- `com.handmeasure.core.measurement.EllipseMath`
+- `com.handmeasure.core.measurement.FrameQualityScorer` (+ input/output models)
+- `com.handmeasure.core.measurement.FingerMeasurementFusion`
+- `com.handmeasure.core.measurement.ResultReliabilityPolicy`
+- `com.handmeasure.core.measurement.RingSizeMapper`
+- Core-neutral measurement models/enums for fusion/reliability/ring sizing
+
+## Adapter strategy in `:HandMeasure`
+
+` :HandMeasure` keeps API compatibility by wrapping/delegating to core:
+
+- `com.handmeasure.measurement.EllipseMath` delegates to core
+- `com.handmeasure.measurement.FrameQualityScorer` uses type aliases to core
+- `com.handmeasure.measurement.FingerMeasurementFusion` maps Android API models <-> core models
+- `com.handmeasure.measurement.ResultReliabilityPolicy` maps Android API models <-> core models
+- `com.handmeasure.measurement.TableRingSizeMapper` maps `RingSizeTable` <-> core table
+
+This keeps current `HandMeasureCoordinator` and Activity flow unchanged at call-site level.
+
+## Tests added in core
+
+New unit tests in `:handmeasure-core`:
+
+- `EllipseMathTest`
+- `FrameQualityScorerTest`
+- `FingerMeasurementFusionTest`
+- `ResultReliabilityPolicyTest`
+- `RingSizeMapperTest`
+
+## Known remaining Android coupling (not handled in this phase)
+
+- `Parcelable` API models (`HandMeasureConfig`, `HandMeasureResult`, `RingSizeTable`) remain Android-side.
+- Image/camera stack remains Android-side (`Bitmap`, CameraX, MediaPipe, OpenCV Android).
+- `MeasurementSessionProcessor` / finalization still decodes bitmaps and performs Android-bound detection.
+- `FingerMeasurementEngine` remains Android/OpenCV-bound.
+
+## Next extraction candidates
+
+- Introduce core-facing config/result domain models and mapper layer from parcelable APIs.
+- Extract additional non-Android session/finalization policies from `MeasurementSessionProcessor`.
+- Reduce `HandMeasureCoordinator` into a thinner orchestrator using core use-cases.
