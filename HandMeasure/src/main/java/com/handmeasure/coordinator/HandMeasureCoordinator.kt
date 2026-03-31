@@ -7,7 +7,6 @@ import com.handmeasure.flow.CaptureUiState
 import com.handmeasure.flow.HandMeasureStateMachine
 import com.handmeasure.flow.ProtocolGuides
 import com.handmeasure.flow.StepCandidate
-import com.handmeasure.measurement.FingerMeasurementEngine
 import com.handmeasure.measurement.FingerMeasurementFusion
 import com.handmeasure.measurement.FrameQualityInput
 import com.handmeasure.measurement.FrameQualityScorer
@@ -50,7 +49,7 @@ class HandMeasureCoordinator(
     private val poseClassifier: PoseClassifier = PoseClassifier(),
     private val frameQualityScorer: FrameQualityScorer = FrameQualityScorer(),
     private val scaleCalibrator: ScaleCalibrator = ScaleCalibrator(),
-    private val fingerMeasurementEngine: FingerMeasurementEngine = FingerMeasurementEngine(),
+    private val fingerMeasurementPort: AndroidFingerMeasurementPort = OpenCvSessionFingerMeasurementPort(),
     private val fingerMeasurementFusion: FingerMeasurementFusion = FingerMeasurementFusion(),
     private val reliabilityPolicy: ResultReliabilityPolicy = ResultReliabilityPolicy(),
     private val debugExportDirProvider: (() -> File?)? = null,
@@ -63,7 +62,6 @@ class HandMeasureCoordinator(
     private val frameSignalEstimator = FrameSignalEstimator()
     private val poseGuidanceHintDecider = PoseGuidanceHintDecider()
     private val debugFrameAnnotator = DebugFrameAnnotator()
-    private val fingerMeasurementPort = OpenCvSessionFingerMeasurementPort(fingerMeasurementEngine)
     private val ringSizeMapper = TableRingSizeMapper()
     private val resultAssembler =
         MeasurementResultAssembler(
