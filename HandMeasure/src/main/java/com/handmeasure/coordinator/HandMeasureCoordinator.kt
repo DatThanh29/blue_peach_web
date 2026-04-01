@@ -7,15 +7,14 @@ import com.handmeasure.flow.CaptureUiState
 import com.handmeasure.flow.HandMeasureStateMachine
 import com.handmeasure.flow.ProtocolGuides
 import com.handmeasure.flow.StepCandidate
-import com.handmeasure.engine.MeasurementEngine
 import com.handmeasure.engine.compat.MeasurementEngineApiMapper
+import com.handmeasure.engine.factory.AndroidMeasurementEngineFactory
 import com.handmeasure.measurement.FingerMeasurementFusion
 import com.handmeasure.measurement.FrameQualityInput
 import com.handmeasure.measurement.FrameQualityScorer
 import com.handmeasure.measurement.OpenCvSessionFingerMeasurementPort
 import com.handmeasure.measurement.ResultReliabilityPolicy
 import com.handmeasure.measurement.ScaleCalibrator
-import com.handmeasure.measurement.TableRingSizeMapper
 import com.handmeasure.protocol.CaptureProtocols
 import com.handmeasure.vision.CardDetection
 import com.handmeasure.vision.HandDetection
@@ -64,9 +63,8 @@ class HandMeasureCoordinator(
 
     private val frameSignalEstimator = FrameSignalEstimator()
     private val poseGuidanceHintDecider = PoseGuidanceHintDecider()
-    private val debugFrameAnnotator = DebugFrameAnnotator()
     private val measurementEngine =
-        MeasurementEngine(
+        AndroidMeasurementEngineFactory.create(
             config = engineApiMapper.toEngineConfig(config),
             handLandmarkEngine = handLandmarkEngine,
             referenceCardDetector = referenceCardDetector,
@@ -75,9 +73,7 @@ class HandMeasureCoordinator(
             fingerMeasurementPort = fingerMeasurementPort,
             fingerMeasurementFusion = fingerMeasurementFusion,
             reliabilityPolicy = reliabilityPolicy,
-            ringSizeMapper = TableRingSizeMapper(),
             frameSignalEstimator = frameSignalEstimator,
-            frameAnnotator = debugFrameAnnotator,
             mapper = engineApiMapper,
         )
     private val debugSessionExporter = DebugSessionExporter(config, debugExportDirProvider)

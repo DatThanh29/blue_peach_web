@@ -56,7 +56,7 @@ class OpenCvSessionFingerMeasurementPortTest {
 
     @Test
     fun mapper_mapsScaleAndMeasurementSource() {
-        val mapper = OpenCvFingerMeasurementMapper()
+        val mapper = OpenCvSessionFingerMeasurementMapper()
 
         val metricScale = mapper.toMetricScale(SessionScale(mmPerPxX = 0.13, mmPerPxY = 0.14))
         val mappedMeasurement =

@@ -1,0 +1,83 @@
+package com.handmeasure.engine.factory
+
+import com.handmeasure.api.CaptureStep
+import com.handmeasure.coordinator.AndroidFingerMeasurementPort
+import com.handmeasure.coordinator.DebugFrameAnnotator
+import com.handmeasure.coordinator.FrameSignalEstimator
+import com.handmeasure.coordinator.MeasurementResultAssembler
+import com.handmeasure.coordinator.MeasurementSessionProcessor
+import com.handmeasure.coordinator.PoseTarget
+import com.handmeasure.engine.MeasurementEngine
+import com.handmeasure.engine.MeasurementEngineResultAssemblerPort
+import com.handmeasure.engine.MeasurementEngineSessionProcessorPort
+import com.handmeasure.engine.compat.MeasurementEngineApiMapper
+import com.handmeasure.engine.model.MeasurementEngineConfig
+import com.handmeasure.measurement.FingerMeasurementFusion
+import com.handmeasure.measurement.OpenCvSessionFingerMeasurementPort
+import com.handmeasure.measurement.ResultReliabilityPolicy
+import com.handmeasure.measurement.ScaleCalibrator
+import com.handmeasure.measurement.TableRingSizeMapper
+import com.handmeasure.protocol.CaptureProtocols
+import com.handmeasure.vision.HandLandmarkEngine
+import com.handmeasure.vision.OpenCvReferenceCardDetector
+import com.handmeasure.vision.PoseClassifier
+import com.handmeasure.vision.ReferenceCardDetector
+
+internal object AndroidMeasurementEngineFactory {
+    fun create(
+        config: MeasurementEngineConfig,
+        handLandmarkEngine: HandLandmarkEngine,
+        referenceCardDetector: ReferenceCardDetector = OpenCvReferenceCardDetector(),
+        poseClassifier: PoseClassifier = PoseClassifier(),
+        scaleCalibrator: ScaleCalibrator = ScaleCalibrator(),
+        fingerMeasurementPort: AndroidFingerMeasurementPort = OpenCvSessionFingerMeasurementPort(),
+        fingerMeasurementFusion: FingerMeasurementFusion = FingerMeasurementFusion(),
+        reliabilityPolicy: ResultReliabilityPolicy = ResultReliabilityPolicy(),
+        ringSizeMapper: TableRingSizeMapper = TableRingSizeMapper(),
+        frameSignalEstimator: FrameSignalEstimator = FrameSignalEstimator(),
+        frameAnnotator: DebugFrameAnnotator = DebugFrameAnnotator(),
+        mapper: MeasurementEngineApiMapper = MeasurementEngineApiMapper(),
+        sessionProcessorPort: MeasurementEngineSessionProcessorPort? = null,
+        resultAssemblerPort: MeasurementEngineResultAssemblerPort? = null,
+    ): MeasurementEngine {
+        val apiConfig = mapper.toApiConfig(config)
+        val poseTargets: Map<CaptureStep, PoseTarget> =
+            CaptureProtocols.steps(apiConfig.protocol).associateBy { it.step }.mapValues { it.value.poseTarget }
+        val sessionProcessor =
+            sessionProcessorPort
+                ?: run {
+                    val processor =
+                        MeasurementSessionProcessor(
+                            config = apiConfig,
+                            handLandmarkEngine = handLandmarkEngine,
+                            referenceCardDetector = referenceCardDetector,
+                            poseClassifier = poseClassifier,
+                            scaleCalibrator = scaleCalibrator,
+                            fingerMeasurementPort = fingerMeasurementPort,
+                            frameSignalEstimator = frameSignalEstimator,
+                            frameAnnotator = frameAnnotator,
+                            poseTargets = poseTargets,
+                        )
+                    MeasurementEngineSessionProcessorPort { stepResults -> processor.process(stepResults) }
+                }
+        val resultAssembler =
+            resultAssemblerPort
+                ?: run {
+                    val assembler =
+                        MeasurementResultAssembler(
+                            config = apiConfig,
+                            fingerMeasurementFusion = fingerMeasurementFusion,
+                            reliabilityPolicy = reliabilityPolicy,
+                            ringSizeMapper = ringSizeMapper,
+                        )
+                    MeasurementEngineResultAssemblerPort { completedSteps, processing ->
+                        assembler.assemble(completedSteps, processing)
+                    }
+                }
+        return MeasurementEngine(
+            sessionProcessor = sessionProcessor,
+            resultAssembler = resultAssembler,
+            mapper = mapper,
+        )
+    }
+}

@@ -40,9 +40,25 @@
 
 ## Modules
 
+- `:handmeasure-core`: platform-neutral session/runtime orchestration + measurement policies/contracts
 - `:HandMeasure`: reusable Android library module
 - `:HandTryOn`: try-on library module (domain/core/render/realtime/validation)
 - `:app`: host demo app
+
+## Architecture layers
+
+- **Android/public compatibility layer (`:HandMeasure`)**
+  - Public Android integration surface (`HandMeasureConfig`, `HandMeasureResult`, `RingSizeTable`, `HandMeasureContract`)
+  - Guided Activity flow (`HandMeasureActivity`) and Parcelable/ActivityResultContract concerns
+  - Android runtime execution (Bitmap decode, CameraX, MediaPipe, OpenCV, overlay encoding)
+- **Internal/headless engine-facing layer (`:HandMeasure`)**
+  - `MeasurementEngine` facade for engine-style invocation without `ActivityResultContract`
+  - Internal engine models + API mappers (`com.handmeasure.engine.model`, `com.handmeasure.engine.compat`)
+  - Android composition factory wiring runtime adapters into engine ports (`AndroidMeasurementEngineFactory`)
+- **Core orchestration layer (`:handmeasure-core`)**
+  - Step/session orchestration use-cases (`StepRuntimeAnalysisUseCase`, `MeasurementSessionProcessingUseCase`)
+  - Core request/result contracts (`SessionFingerMeasurementRequest`, `SessionFingerMeasurementPort`)
+  - Platform-neutral policies (fusion, reliability, ring-size mapping, quality scoring)
 
 ## Public API
 
@@ -50,6 +66,8 @@
 - `HandMeasureContract`
 - `HandMeasureResult`
 - `RingSizeTable`
+
+This Android/public API remains backward-compatible and is implemented as a compatibility layer over the internal engine/runtime boundaries.
 
 Example:
 

@@ -1,5 +1,35 @@
 # HandMeasure Core Extraction (Phase 1)
 
+## Current architecture snapshot (source-of-truth)
+
+### Module boundaries
+
+- `:handmeasure-core`
+  - platform-neutral session/runtime orchestration use-cases
+  - core measurement contracts/models/policies
+  - no Android UI/Parcelable/Activity contracts
+- `:HandMeasure`
+  - Android/public compatibility API (`HandMeasureConfig`, `HandMeasureResult`, `RingSizeTable`, `HandMeasureContract`)
+  - Android runtime adapter layer (Bitmap/MediaPipe/OpenCV execution)
+  - internal engine-facing facade (`MeasurementEngine`) + Android composition factory wiring
+- `:app`
+  - demo host integration of current Android public flow
+
+### Active runtime/measurement boundary
+
+- Upper runtime/session flow delegates through core contract:
+  - `SessionFingerMeasurementRequest`
+  - `SessionFingerMeasurementPort`
+- Android/OpenCV-only conversion + execution remains isolated under:
+  - `OpenCvSessionFingerMeasurementPort`
+  - `OpenCvSessionFingerMeasurementMapper`
+  - `OpenCvFingerMeasurementEngineExecutor`
+
+### Compatibility status
+
+- Existing Activity/Contract/Parcelable flow remains backward-compatible.
+- Internal engine-facing invocation exists for headless-style integration, but runtime execution is still Android-bound by design.
+
 ## Scope of this phase
 
 - Introduce a new platform-neutral module: `:handmeasure-core`.
@@ -248,3 +278,35 @@ New unit tests in `:handmeasure-core`:
 ### Tests
 
 - `AndroidFingerRuntimeAdapterTest` now includes an additional constructor-boundary assertion for `HandMeasureCoordinator` (port dependency present, engine dependency absent).
+
+## Phase 9 update: stabilization and composition cleanup
+
+### MeasurementEngine cleanup
+
+- `MeasurementEngine` is now a small facade that depends on:
+  - `MeasurementEngineSessionProcessorPort`
+  - `MeasurementEngineResultAssemblerPort`
+  - `MeasurementEngineApiMapper`
+- Direct Android-heavy construction was moved out of `MeasurementEngine`.
+
+### Android composition extraction
+
+- Added `AndroidMeasurementEngineFactory` to compose default Android runtime/session collaborators.
+- `HandMeasureCoordinator` now creates `MeasurementEngine` through this factory instead of wiring internals directly.
+
+### File decomposition for maintainability
+
+- Split former multi-adapter bundle into focused runtime files:
+  - runtime adapter contracts
+  - hand/card/pose/coplanarity/scale/finger/overlay adapter implementations
+- Split OpenCV measurement boundary into focused files:
+  - `OpenCvSessionFingerMeasurementPort`
+  - `OpenCvFingerMeasurementRequest`
+  - `OpenCvFingerMeasurementExecutor`
+  - `OpenCvSessionFingerMeasurementMapper`
+  - `OpenCvFingerMeasurementEngineExecutor`
+
+### Verification improvements
+
+- Added `AndroidMeasurementEngineFactoryTest` for factory/engine boundary wiring.
+- `MeasurementEngineTest` now verifies constructor dependency boundary (ports-only facade).
