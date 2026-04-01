@@ -30,6 +30,8 @@ class TryOnEngineTest {
 
         assertThat(result.session.mode).isEqualTo(TryOnMode.Measured)
         assertThat(result.session.updatedAtMs).isEqualTo(1234L)
+        assertThat(result.renderState.mode).isEqualTo(TryOnMode.Measured)
+        assertThat(result.renderState.generatedAtMs).isEqualTo(1234L)
     }
 
     private fun ringPose(): TryOnHandPoseSnapshot {

@@ -22,7 +22,28 @@ class TryOnSessionResolver(
         frameWidth: Int,
         frameHeight: Int,
         nowMs: Long = System.currentTimeMillis(),
-    ): TryOnSession {
+    ): TryOnSession =
+        resolveState(
+            asset = asset,
+            handPose = handPose,
+            measurement = measurement,
+            manualPlacement = manualPlacement,
+            previousSession = previousSession,
+            frameWidth = frameWidth,
+            frameHeight = frameHeight,
+            nowMs = nowMs,
+        ).session
+
+    fun resolveState(
+        asset: RingAssetSource,
+        handPose: HandPoseSnapshot?,
+        measurement: MeasurementSnapshot?,
+        manualPlacement: RingPlacement?,
+        previousSession: TryOnSession?,
+        frameWidth: Int,
+        frameHeight: Int,
+        nowMs: Long = System.currentTimeMillis(),
+    ): TryOnSessionResolution {
         val request =
             mapper.toEngineRequest(
                 asset = asset,
@@ -34,6 +55,6 @@ class TryOnSessionResolver(
                 frameHeight = frameHeight,
                 nowMs = nowMs,
             )
-        return mapper.toDomainSession(engine.resolve(request))
+        return mapper.toSessionResolution(engine.resolve(request))
     }
 }

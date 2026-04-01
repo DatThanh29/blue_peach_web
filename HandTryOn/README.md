@@ -27,8 +27,9 @@
   - overlay/UI integration (`TryOnOverlay`)
 - **Internal/headless engine-facing layer (`:HandTryOn`)**
   - `TryOnEngine` orchestration entry
-  - internal engine request/result models
+  - internal engine request/result/session/render-state models (`com.handtryon.engine.model`)
   - mapper + compatibility adapter (`TryOnEngineDomainMapper`, `TryOnSessionResolver`)
+  - compatibility session+render-state output (`TryOnSessionResolution`)
 - **Portable policy layer (`:handtryon-core`)**
   - `TryOnSessionResolverPolicy`
   - `TemporalPlacementSmootherPolicy`
@@ -38,5 +39,7 @@
 
 ## Boundary notes
 
+- `TryOnEngine` now primarily returns Android-free engine state (`TryOnEngineResult` with session + render state).
+- `TryOnRenderState` is Android/public compatibility render input without `Bitmap`.
 - `TryOnRenderResult` remains Android-side because it carries `Bitmap`.
 - `:handtryon-core` contains no `Bitmap`, `ImageProxy`, CameraX, Compose, or Android UI classes.

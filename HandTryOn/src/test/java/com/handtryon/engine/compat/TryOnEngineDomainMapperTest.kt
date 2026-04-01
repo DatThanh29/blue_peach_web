@@ -10,6 +10,9 @@ import com.handtryon.domain.RingPlacement
 import com.handtryon.domain.TryOnInputQuality
 import com.handtryon.domain.TryOnMode
 import com.handtryon.domain.TryOnSession
+import com.handtryon.engine.model.TryOnEngineRenderState
+import com.handtryon.engine.model.TryOnEngineResult
+import com.handtryon.engine.model.TryOnEngineSessionState
 import org.junit.Test
 
 class TryOnEngineDomainMapperTest {
@@ -81,8 +84,79 @@ class TryOnEngineDomainMapperTest {
                 frameHeight = 1920,
                 nowMs = 1300L,
             )
-        val mappedBack = mapper.toDomainSession(com.handtryon.engine.model.TryOnEngineResult(request.previousSession!!))
+        val previousSession = request.previousSession!!
+        val engineResult =
+            TryOnEngineResult(
+                session =
+                    TryOnEngineSessionState(
+                        asset = previousSession.asset,
+                        mode = previousSession.mode,
+                        quality = previousSession.quality,
+                        anchor = previousSession.anchor,
+                        placement = previousSession.placement,
+                        updatedAtMs = previousSession.updatedAtMs,
+                    ),
+                renderState =
+                    TryOnEngineRenderState(
+                        mode = previousSession.mode,
+                        anchor = previousSession.anchor,
+                        placement = previousSession.placement,
+                        generatedAtMs = 1300L,
+                    ),
+            )
+        val mappedBack = mapper.toDomainSession(engineResult)
 
         assertThat(mappedBack).isEqualTo(domainSession)
+    }
+
+    @Test
+    fun renderStateMapping_mapsEngineResultToAndroidCompatibilityRenderState() {
+        val request =
+            mapper.toEngineRequest(
+                asset = RingAssetSource(id = "ring", name = "ring", overlayAssetPath = "ring.png"),
+                handPose = null,
+                measurement = null,
+                manualPlacement = RingPlacement(centerX = 120f, centerY = 240f, ringWidthPx = 66f, rotationDegrees = 7f),
+                previousSession = null,
+                frameWidth = 1080,
+                frameHeight = 1920,
+                nowMs = 3000L,
+            )
+        val corePlacement = requireNotNull(request.manualPlacement)
+        val engineResult =
+            TryOnEngineResult(
+                session =
+                    TryOnEngineSessionState(
+                        asset = request.asset,
+                        mode = com.handtryon.coreengine.model.TryOnMode.Manual,
+                        quality =
+                            com.handtryon.coreengine.model.TryOnInputQuality(
+                                measurementUsable = false,
+                                landmarkUsable = false,
+                                measurementConfidence = 0f,
+                                landmarkConfidence = 0f,
+                                usedLastGoodAnchor = false,
+                            ),
+                        anchor = null,
+                        placement = corePlacement,
+                        updatedAtMs = 3000L,
+                    ),
+                renderState =
+                    TryOnEngineRenderState(
+                        mode = com.handtryon.coreengine.model.TryOnMode.Manual,
+                        anchor = null,
+                        placement = corePlacement,
+                        generatedAtMs = 3000L,
+                    ),
+            )
+
+        val renderState = mapper.toRenderState(engineResult)
+        val resolution = mapper.toSessionResolution(engineResult)
+
+        assertThat(renderState.mode).isEqualTo(TryOnMode.Manual)
+        assertThat(renderState.placement.ringWidthPx).isEqualTo(66f)
+        assertThat(renderState.generatedAtMs).isEqualTo(3000L)
+        assertThat(resolution.session.mode).isEqualTo(TryOnMode.Manual)
+        assertThat(resolution.renderState).isEqualTo(renderState)
     }
 }

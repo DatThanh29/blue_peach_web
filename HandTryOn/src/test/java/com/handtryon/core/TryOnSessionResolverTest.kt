@@ -94,6 +94,25 @@ class TryOnSessionResolverTest {
         assertThat(second.quality.usedLastGoodAnchor).isTrue()
     }
 
+    @Test
+    fun resolveState_returnsSessionAndAndroidFreeRenderState() {
+        val resolution =
+            resolver.resolveState(
+                asset = asset,
+                handPose = ringPose(timestampMs = 1800L),
+                measurement = MeasurementSnapshot(17.6f, 19f, confidence = 0.85f),
+                manualPlacement = null,
+                previousSession = null,
+                frameWidth = 1080,
+                frameHeight = 1920,
+                nowMs = 2000L,
+            )
+
+        assertThat(resolution.session.mode).isEqualTo(TryOnMode.Measured)
+        assertThat(resolution.renderState.mode).isEqualTo(TryOnMode.Measured)
+        assertThat(resolution.renderState.generatedAtMs).isEqualTo(2000L)
+    }
+
     private fun ringPose(timestampMs: Long = 1000L): HandPoseSnapshot {
         val points = MutableList(21) { LandmarkPoint(400f, 900f) }
         points[13] = LandmarkPoint(540f, 960f)

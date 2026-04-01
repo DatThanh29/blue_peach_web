@@ -9,6 +9,7 @@ import com.handtryon.domain.FingerAnchor
 import com.handtryon.domain.RingPlacement
 import com.handtryon.domain.TryOnMode
 import com.handtryon.domain.TryOnRenderResult
+import com.handtryon.render.model.TryOnRenderState
 import com.handtryon.validation.PlacementValidator
 
 class StableRingOverlayRenderer(
@@ -83,6 +84,21 @@ class StableRingOverlayRenderer(
             validation = validation,
         )
     }
+
+    fun renderToBitmap(
+        baseFrame: Bitmap,
+        ringBitmap: Bitmap,
+        renderState: TryOnRenderState,
+        nowMs: Long = renderState.generatedAtMs,
+    ): TryOnRenderResult =
+        renderToBitmap(
+            baseFrame = baseFrame,
+            ringBitmap = ringBitmap,
+            rawPlacement = renderState.placement,
+            anchor = renderState.anchor,
+            mode = renderState.mode,
+            nowMs = nowMs,
+        )
 
     private fun drawRing(
         canvas: Canvas,
