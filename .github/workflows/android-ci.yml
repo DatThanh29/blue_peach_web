@@ -29,5 +29,12 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
-      - name: Static checks and unit tests
-        run: ./gradlew --no-daemon ktlintCheck detekt :handmeasure-core:test :handtryon-core:test :HandMeasure:compileDebugKotlin :HandMeasure:testDebugUnitTest :HandTryOn:compileDebugKotlin :HandTryOn:testDebugUnitTest :app:compileDebugKotlin
+      - name: Static checks, unit tests, and demo debug assemble
+        run: ./gradlew --no-daemon ktlintCheck detekt :handmeasure-core:test :handtryon-core:test :HandMeasure:compileDebugKotlin :HandMeasure:testDebugUnitTest :HandTryOn:compileDebugKotlin :HandTryOn:testDebugUnitTest :app:compileDebugKotlin :app:assembleDebug
+
+      - name: Upload demo debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
