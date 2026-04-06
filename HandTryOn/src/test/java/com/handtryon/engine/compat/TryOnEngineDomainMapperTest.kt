@@ -159,4 +159,24 @@ class TryOnEngineDomainMapperTest {
         assertThat(resolution.session.mode).isEqualTo(TryOnMode.Manual)
         assertThat(resolution.renderState).isEqualTo(renderState)
     }
+
+    @Test
+    fun placementValidationMapping_preserves_validation_contract_fields() {
+        val domainValidation =
+            mapper.toDomainPlacementValidation(
+                com.handtryon.coreengine.model.TryOnPlacementValidation(
+                    widthRatio = 0.14f,
+                    anchorDistancePx = 9f,
+                    rotationJumpDeg = 3f,
+                    isPlacementUsable = true,
+                    notes = emptyList(),
+                ),
+            )
+
+        assertThat(domainValidation.widthRatio).isEqualTo(0.14f)
+        assertThat(domainValidation.anchorDistancePx).isEqualTo(9f)
+        assertThat(domainValidation.rotationJumpDeg).isEqualTo(3f)
+        assertThat(domainValidation.isPlacementUsable).isTrue()
+        assertThat(domainValidation.notes).isEmpty()
+    }
 }

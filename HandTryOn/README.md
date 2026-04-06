@@ -43,3 +43,26 @@
 - `TryOnRenderState` is Android/public compatibility render input without `Bitmap`.
 - `TryOnRenderResult` remains Android-side because it carries `Bitmap`.
 - `:handtryon-core` contains no `Bitmap`, `ImageProxy`, CameraX, Compose, or Android UI classes.
+
+## Phase 1 stabilization gate
+
+- Build graph wiring:
+  - `settings.gradle.kts` includes both `:HandTryOn` and `:handtryon-core`.
+  - `:HandTryOn` depends on `project(":handtryon-core")`.
+- CI verifies:
+  - `:handtryon-core:test`
+  - `:HandTryOn:compileDebugKotlin`
+  - `:HandTryOn:testDebugUnitTest`
+- Baseline boundary tests protect:
+  - engine orchestration (`TryOnEngineTest`)
+  - session resolver policy (`TryOnSessionResolverPolicyTest`)
+  - temporal smoothing policy (`TemporalPlacementSmootherPolicyTest`)
+  - placement validation policy (`PlacementValidationPolicyTest`)
+  - engine/domain mapper contracts (`TryOnEngineDomainMapperTest`)
+
+## Still future work (not implemented in Phase 1)
+
+- deeper `TryOnEngine` redesign beyond current orchestration boundary
+- broad renderer internals refactor or rendering stack replacement
+- UI/UX redesign and broad package cleanup
+- KMP migration

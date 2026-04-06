@@ -7,6 +7,7 @@ import com.handtryon.coreengine.model.TryOnHandPoseSnapshot
 import com.handtryon.coreengine.model.TryOnLandmarkPoint
 import com.handtryon.coreengine.model.TryOnMeasurementSnapshot
 import com.handtryon.coreengine.model.TryOnMode
+import com.handtryon.coreengine.model.TryOnPlacement
 import com.handtryon.engine.model.TryOnEngineRequest
 import org.junit.Test
 
@@ -32,6 +33,32 @@ class TryOnEngineTest {
         assertThat(result.session.updatedAtMs).isEqualTo(1234L)
         assertThat(result.renderState.mode).isEqualTo(TryOnMode.Measured)
         assertThat(result.renderState.generatedAtMs).isEqualTo(1234L)
+        assertThat(result.renderState.anchor).isEqualTo(result.session.anchor)
+        assertThat(result.renderState.placement).isEqualTo(result.session.placement)
+    }
+
+    @Test
+    fun resolve_preserves_manual_placement_when_inputs_are_manual_only() {
+        val engine = TryOnEngine(resolverPolicy = TryOnSessionResolverPolicy())
+        val manualPlacement = TryOnPlacement(centerX = 240f, centerY = 360f, ringWidthPx = 70f, rotationDegrees = 11f)
+        val request =
+            TryOnEngineRequest(
+                asset = TryOnAssetSource(id = "ring", name = "ring", overlayAssetPath = "ring.png"),
+                handPose = null,
+                measurement = null,
+                manualPlacement = manualPlacement,
+                previousSession = null,
+                frameWidth = 1080,
+                frameHeight = 1920,
+                nowMs = 9999L,
+            )
+
+        val result = engine.resolve(request)
+
+        assertThat(result.session.mode).isEqualTo(TryOnMode.Manual)
+        assertThat(result.session.placement).isEqualTo(manualPlacement)
+        assertThat(result.renderState.placement).isEqualTo(manualPlacement)
+        assertThat(result.renderState.generatedAtMs).isEqualTo(9999L)
     }
 
     private fun ringPose(): TryOnHandPoseSnapshot {

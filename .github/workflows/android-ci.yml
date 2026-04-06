@@ -30,4 +30,4 @@ jobs:
         run: chmod +x gradlew
 
       - name: Static checks and unit tests
-        run: ./gradlew --no-daemon ktlintCheck detekt :handmeasure-core:test :HandMeasure:compileDebugKotlin :HandMeasure:testDebugUnitTest :app:compileDebugKotlin
+        run: ./gradlew --no-daemon ktlintCheck detekt :handmeasure-core:test :handtryon-core:test :HandMeasure:compileDebugKotlin :HandMeasure:testDebugUnitTest :HandTryOn:compileDebugKotlin :HandTryOn:testDebugUnitTest :app:compileDebugKotlin

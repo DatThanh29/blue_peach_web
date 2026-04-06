@@ -236,6 +236,7 @@ Unit tests cover:
 - frame quality scoring
 - pose classification helpers
 - fusion robustness checks
+- try-on engine/policy boundary contracts (`:handtryon-core`, `:HandTryOn`)
 
 Instrumented tests cover:
 - replay-path smoke test for `HandMeasureActivity`

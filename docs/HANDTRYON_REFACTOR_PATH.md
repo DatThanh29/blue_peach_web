@@ -56,3 +56,26 @@
 - `StableRingOverlayRenderer` and preview/export rendering (`Bitmap`, `Canvas`)
 - `TryOnRenderResult` (contains `Bitmap`)
 - Compose overlay UI (`TryOnOverlay`)
+
+## Phase 1 stabilization status (current)
+
+- Build graph is currently aligned:
+  - `settings.gradle.kts` includes `:handtryon-core` and `:HandTryOn`.
+  - `:HandTryOn` consumes `:handtryon-core` via Gradle project dependency.
+- CI gate now validates TryOn modules explicitly:
+  - `:handtryon-core:test`
+  - `:HandTryOn:compileDebugKotlin`
+  - `:HandTryOn:testDebugUnitTest`
+- Baseline contract tests are in place for:
+  - `TryOnEngine` orchestration boundary
+  - `TryOnSessionResolverPolicy`
+  - `TemporalPlacementSmootherPolicy`
+  - `PlacementValidationPolicy`
+  - mapper conversions between engine-facing/core models and Android compatibility models
+
+## What is still future work after Phase 1
+
+- redesigning `TryOnEngine` internals beyond the current boundary
+- deep renderer refactor or rendering technology replacement
+- broad package cleanup and module migration beyond current extraction
+- KMP migration of try-on components
