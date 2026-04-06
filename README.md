@@ -237,6 +237,7 @@ Unit tests cover:
 - pose classification helpers
 - fusion robustness checks
 - try-on engine/policy boundary contracts (`:handtryon-core`, `:HandTryOn`)
+- app demo handoff mapping/fallback behavior (`:app`)
 
 Instrumented tests cover:
 - replay-path smoke test for `HandMeasureActivity`
@@ -271,7 +272,20 @@ For the refactor structure and component boundaries, see `docs/refactor-architec
 
 - Core try-on implementation: `:HandTryOn`
 - Demo host wiring: `:app` module, package `com.handmeasure.sample.tryon`
+- Demo entry path: launch `:app` and use the landing screen actions (`Launch HandMeasure Demo`, `Launch HandTryOn Demo`, `Launch Measure -> TryOn Flow`)
 - `HandTryOn` docs: `HandTryOn/README.md`
 - POC guide: `docs/tryon-poc.md`
 - Asset normalization guide: `docs/tryon-asset-normalization.md`
 - Validation guide: `docs/tryon-validation.md`
+
+### Combined demo walkthrough (earliest end-to-end story)
+
+1. Launch `:app`, tap `Launch Measure -> TryOn Flow`.
+2. Let HandMeasure finish, then return to TryOn; the bottom panel shows `Handoff: ...` and `Source: Live HandMeasure result`.
+3. If measurement is canceled in that combined route, the demo applies `Simulated handoff` automatically so TryOn still has deterministic measurement input.
+4. Optional presenter control: in TryOn use `Use Sample Handoff` or `Clear Handoff` to show measured vs non-measured behavior quickly.
+
+Current limitations:
+- Handoff mapping is app-layer only (`app/src/main/java/com/handmeasure/sample/tryon/model/TryOnDemoHandoff.kt`), intentionally separate from library public APIs.
+- Handoff is demo-host level only (no persistent cross-module session object).
+- Only measurement values needed by TryOn (`diameter`, `finger width`, `confidence`) are transferred.

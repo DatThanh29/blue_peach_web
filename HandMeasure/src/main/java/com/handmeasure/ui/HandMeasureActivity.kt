@@ -55,6 +55,7 @@ import com.handmeasure.R
 import com.handmeasure.api.CaptureStep
 import com.handmeasure.api.HandMeasureConfig
 import com.handmeasure.api.HandMeasureResult
+import com.handmeasure.api.HandMeasureWarning
 import com.handmeasure.api.CalibrationStatus
 import com.handmeasure.api.MeasurementSource
 import com.handmeasure.api.QualityLevel
@@ -150,7 +151,7 @@ private fun HandMeasureRoute(
         if (config.debugReplayInputPath != null) {
             phase = FlowPhase.PROCESSING
             val replayPath = config.debugReplayInputPath
-            val replayResult =
+            val replayOutcome =
                 withContext(Dispatchers.Default) {
                     runCatching {
                         val replayEngine = MediaPipeHandLandmarkEngine(context)
@@ -167,9 +168,14 @@ private fun HandMeasureRoute(
                         } finally {
                             replayEngine.close()
                         }
-                    }.getOrNull()
+                    }
                 }
-            result = replayResult?.result
+            result =
+                replayOutcome.getOrNull()?.result
+                    ?: buildBestEffortFallbackResult(
+                        config = config,
+                        note = replayOutcome.exceptionOrNull()?.message,
+                    )
             phase = FlowPhase.RESULT
             return@LaunchedEffect
         }
@@ -218,27 +224,7 @@ private fun HandMeasureRoute(
                 lensFacing = config.lensFacing,
                 onError = {
                     phase = FlowPhase.RESULT
-                    result =
-                        HandMeasureResult(
-                            targetFinger = config.targetFinger,
-                            fingerWidthMm = 18.0,
-                            fingerThicknessMm = 14.0,
-                            estimatedCircumferenceMm = 50.3,
-                            equivalentDiameterMm = 16.0,
-                            suggestedRingSizeLabel = config.ringSizeTable.entries.first().label,
-                            confidenceScore = 0.2f,
-                            warnings =
-                                listOf(
-                                    com.handmeasure.api.HandMeasureWarning.BEST_EFFORT_ESTIMATE,
-                                    com.handmeasure.api.HandMeasureWarning.LOW_RESULT_RELIABILITY,
-                                ),
-                            capturedSteps = emptyList(),
-                            resultMode = ResultMode.FALLBACK_ESTIMATE,
-                            qualityLevel = QualityLevel.LOW,
-                            retryRecommended = true,
-                            calibrationStatus = CalibrationStatus.MISSING_REFERENCE,
-                            measurementSources = listOf(MeasurementSource.DEFAULT_HEURISTIC),
-                        )
+                    result = buildBestEffortFallbackResult(config = config)
                 },
             )
             onDispose {
@@ -418,13 +404,20 @@ private fun ResultScreen(result: HandMeasureResult?, onDone: () -> Unit) {
                 Text("Circumference: ${result.estimatedCircumferenceMm.format2()} mm")
                 Text("Equivalent diameter: ${result.equivalentDiameterMm.format2()} mm")
                 Text("Confidence: ${result.confidenceScore.format2()}")
+                Text("Captured steps: ${result.capturedSteps.size}")
                 Text("Mode: ${result.resultMode} | Quality: ${result.qualityLevel}")
                 Text("Calibration: ${result.calibrationStatus} | Retry recommended: ${result.retryRecommended}")
-                if (result.warnings.isNotEmpty()) {
+                val warningsText = if (result.warnings.isEmpty()) "none" else result.warnings.joinToString()
+                Text(
+                    "Warnings: $warningsText",
+                    color = Color(0xFF8A4B08),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (result.retryRecommended) {
                     Text(
-                        "Warnings: ${result.warnings.joinToString()}",
+                        "Result is best-effort. Retaking under steadier conditions is recommended.",
                         color = Color(0xFF8A4B08),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
@@ -479,3 +472,32 @@ private fun PoseGuidanceHintKey.toResId(): Int =
         PoseGuidanceHintKey.TILT_DOWN_MORE -> R.string.pose_hint_tilt_down_more
         PoseGuidanceHintKey.FACE_PALM_TO_CAMERA -> R.string.pose_hint_face_palm_to_camera
     }
+
+private fun buildBestEffortFallbackResult(
+    config: HandMeasureConfig,
+    note: String? = null,
+): HandMeasureResult {
+    val warnings =
+        buildList {
+            add(HandMeasureWarning.BEST_EFFORT_ESTIMATE)
+            add(HandMeasureWarning.LOW_RESULT_RELIABILITY)
+            if (!note.isNullOrBlank()) add(HandMeasureWarning.CALIBRATION_WEAK)
+        }
+    return HandMeasureResult(
+        targetFinger = config.targetFinger,
+        fingerWidthMm = 18.0,
+        fingerThicknessMm = 14.0,
+        estimatedCircumferenceMm = 50.3,
+        equivalentDiameterMm = 16.0,
+        suggestedRingSizeLabel = config.ringSizeTable.entries.first().label,
+        confidenceScore = 0.2f,
+        warnings = warnings,
+        capturedSteps = emptyList(),
+        resultMode = ResultMode.FALLBACK_ESTIMATE,
+        qualityLevel = QualityLevel.LOW,
+        retryRecommended = true,
+        calibrationStatus = CalibrationStatus.MISSING_REFERENCE,
+        measurementSources = listOf(MeasurementSource.DEFAULT_HEURISTIC),
+        debugMetadata = null,
+    )
+}

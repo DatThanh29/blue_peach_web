@@ -34,12 +34,15 @@ class HandMeasureStateMachine(
 ) {
     private var currentStepIndex = 0
     private var bestCandidate: StepCandidate? = null
+    private var evaluatedFrameCountForStep = 0
+    private var retryCountForStep = 0
     private val completed = mutableListOf<StepCandidate>()
 
     fun onFrameEvaluated(candidate: StepCandidate): CaptureUiState {
         if (candidate.step != currentStep().step || isComplete()) {
             return snapshot()
         }
+        evaluatedFrameCountForStep += 1
         if (bestCandidate == null || candidate.qualityScore > bestCandidate!!.qualityScore) {
             bestCandidate = candidate
         }
@@ -56,6 +59,7 @@ class HandMeasureStateMachine(
 
     fun retryCurrentStep(): CaptureUiState {
         bestCandidate = null
+        retryCountForStep += 1
         return snapshot()
     }
 
@@ -68,6 +72,8 @@ class HandMeasureStateMachine(
         completed.removeAll { it.step == candidate.step }
         completed.add(candidate)
         bestCandidate = null
+        evaluatedFrameCountForStep = 0
+        retryCountForStep = 0
         if (currentStepIndex < stepDefinitions.lastIndex) {
             currentStepIndex += 1
         } else {
@@ -81,9 +87,20 @@ class HandMeasureStateMachine(
             completedSteps = completed.toList(),
             bestCurrentCandidate = bestCandidate,
             progressFraction = completed.size.toFloat() / stepDefinitions.size.toFloat(),
-            canAdvanceWithBest =
-                bestCandidate?.qualityScore?.let { it >= thresholds.bestCandidateProgressScore } == true,
+            canAdvanceWithBest = canAdvanceWithBest(bestCandidate),
             isFlowComplete = isComplete(),
             totalSteps = stepDefinitions.size,
         )
+
+    private fun canAdvanceWithBest(candidate: StepCandidate?): Boolean {
+        val score = candidate?.qualityScore ?: return false
+        if (score >= thresholds.bestCandidateProgressScore) return true
+        val relaxedGateSatisfied = evaluatedFrameCountForStep >= RELAXED_PROGRESS_FRAME_GATE || retryCountForStep > 0
+        return relaxedGateSatisfied && score >= RELAXED_PROGRESS_MIN_SCORE
+    }
+
+    private companion object {
+        const val RELAXED_PROGRESS_FRAME_GATE = 40
+        const val RELAXED_PROGRESS_MIN_SCORE = 0.46f
+    }
 }

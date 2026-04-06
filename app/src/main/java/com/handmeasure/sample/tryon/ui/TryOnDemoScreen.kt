@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,12 +36,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.handmeasure.api.HandMeasureConfig
 import com.handmeasure.api.HandMeasureContract
-import com.handmeasure.api.HandMeasureResult
-import com.handmeasure.api.QualityThresholds
-import com.handmeasure.api.TargetFinger
 import com.handmeasure.camera.CameraController
+import com.handmeasure.sample.measure.ui.defaultDemoMeasureConfig
+import com.handmeasure.sample.tryon.model.TryOnDemoHandoff
+import com.handmeasure.sample.tryon.model.resolveDemoHandoff
+import com.handmeasure.sample.tryon.model.sampleTryOnDemoHandoff
 import com.handmeasure.vision.HandDetection
 import com.handmeasure.vision.MediaPipeHandLandmarkEngine
 import com.handtryon.core.HandPoseProvider
@@ -64,6 +65,8 @@ import kotlin.math.roundToInt
 
 @Composable
 fun TryOnDemoScreen(
+    onBack: (() -> Unit)? = null,
+    autoLaunchMeasureOnStart: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -84,6 +87,8 @@ fun TryOnDemoScreen(
     var manualAdjustEnabled by remember { mutableStateOf(false) }
     var runtimeMetrics by remember { mutableStateOf<RuntimeMetrics?>(null) }
     var exportedPath by remember { mutableStateOf<String?>(null) }
+    var latestMeasurementHandoff by remember { mutableStateOf<TryOnDemoHandoff?>(null) }
+    var hasTriggeredAutoMeasure by rememberSaveable { mutableStateOf(false) }
 
     val baseAsset =
         remember {
@@ -106,26 +111,68 @@ fun TryOnDemoScreen(
             )
         }
 
+    fun resolveSessionState(
+        handPose: HandPoseSnapshot? = handPoseProvider.latestPose(),
+        measurement: MeasurementSnapshot? = measurementProvider.latestMeasurement(),
+        manualPlacementOverride: RingPlacement? = if (manualAdjustEnabled) manualPlacement else null,
+        previousSessionOverride: TryOnSession? = session,
+        frameWidth: Int = latestFrame?.width ?: DEMO_FALLBACK_FRAME_WIDTH,
+        frameHeight: Int = latestFrame?.height ?: DEMO_FALLBACK_FRAME_HEIGHT,
+        nowMs: Long = System.currentTimeMillis(),
+    ): TryOnSession =
+        sessionResolver.resolve(
+            asset = activeAsset,
+            handPose = handPose,
+            measurement = measurement,
+            manualPlacement = manualPlacementOverride,
+            previousSession = previousSessionOverride,
+            frameWidth = frameWidth,
+            frameHeight = frameHeight,
+            nowMs = nowMs,
+        )
+
+    fun applyMeasurementHandoff(handoff: TryOnDemoHandoff) {
+        latestMeasurementHandoff = handoff
+        measurementProvider.snapshot = handoff.snapshot
+        session = resolveSessionState()
+    }
+
+    fun clearMeasurementHandoff() {
+        latestMeasurementHandoff = null
+        measurementProvider.snapshot = null
+        manualAdjustEnabled = false
+        session = resolveSessionState(measurement = null, manualPlacementOverride = null)
+    }
+
     val permissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             hasCameraPermission = granted
         }
     val measureLauncher =
         rememberLauncherForActivityResult(HandMeasureContract()) { result ->
-            measurementProvider.snapshot = result?.toMeasurementSnapshot()
-            if (result != null) {
-                session =
-                    sessionResolver.resolve(
-                        asset = activeAsset,
-                        handPose = handPoseProvider.latestPose(),
-                        measurement = measurementProvider.latestMeasurement(),
-                        manualPlacement = if (manualAdjustEnabled) manualPlacement else null,
-                        previousSession = session,
-                        frameWidth = latestFrame?.width ?: 1080,
-                        frameHeight = latestFrame?.height ?: 1920,
-                    )
+            val handoff =
+                resolveDemoHandoff(
+                    result = result,
+                    allowSimulatedFallback = autoLaunchMeasureOnStart,
+                )
+            if (handoff != null) {
+                applyMeasurementHandoff(handoff)
+                if (result == null && autoLaunchMeasureOnStart) {
+                    Toast.makeText(
+                        context,
+                        "Measurement canceled. Simulated handoff applied for demo continuity.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
             }
         }
+
+    LaunchedEffect(autoLaunchMeasureOnStart, hasTriggeredAutoMeasure) {
+        if (autoLaunchMeasureOnStart && !hasTriggeredAutoMeasure) {
+            hasTriggeredAutoMeasure = true
+            measureLauncher.launch(defaultDemoMeasureConfig())
+        }
+    }
 
     LaunchedEffect(Unit) {
         hasCameraPermission =
@@ -148,12 +195,7 @@ fun TryOnDemoScreen(
                             latestFrame = upsertSnapshot(latestFrame, frame)
                             if (!manualAdjustEnabled || session == null) {
                                 session =
-                                    sessionResolver.resolve(
-                                        asset = activeAsset,
-                                        handPose = handPoseProvider.latestPose(),
-                                        measurement = measurementProvider.latestMeasurement(),
-                                        manualPlacement = if (manualAdjustEnabled) manualPlacement else null,
-                                        previousSession = session,
+                                    resolveSessionState(
                                         frameWidth = frame.width,
                                         frameHeight = frame.height,
                                         nowMs = timestampMs,
@@ -200,6 +242,41 @@ fun TryOnDemoScreen(
     val frameHeight = latestFrame?.height ?: 0
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+        Column(
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            onBack?.let { goBack ->
+                Button(onClick = goBack) {
+                    Text("Back to Demo Landing")
+                }
+            }
+            if (!hasCameraPermission) {
+                Text(
+                    text = "Camera permission is required for realtime try-on.",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier =
+                        Modifier
+                            .background(Color(0xAA000000), RoundedCornerShape(8.dp))
+                            .padding(8.dp),
+                )
+            }
+            if (ringBitmap == null) {
+                Text(
+                    text = "Ring asset failed to load. Overlay and export are unavailable.",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier =
+                        Modifier
+                            .background(Color(0xAA000000), RoundedCornerShape(8.dp))
+                            .padding(8.dp),
+                )
+            }
+        }
         TryOnOverlay(
             ringBitmap = ringBitmap,
             frameWidth = frameWidth,
@@ -255,52 +332,42 @@ fun TryOnDemoScreen(
                 color = Color(0xFFE0E0E0),
                 style = MaterialTheme.typography.bodySmall,
             )
+            Text(
+                text =
+                    latestMeasurementHandoff?.summary
+                        ?: "Handoff: none. Use Measure Hand or Use Sample Handoff for a combined demo story.",
+                color = Color(0xFFB2FF59),
+                style = MaterialTheme.typography.bodySmall,
+            )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
                         manualAdjustEnabled = false
-                        session =
-                            sessionResolver.resolve(
-                                asset = activeAsset,
-                                handPose = handPoseProvider.latestPose(),
-                                measurement = measurementProvider.latestMeasurement(),
-                                manualPlacement = null,
-                                previousSession = session,
-                                frameWidth = latestFrame?.width ?: 1080,
-                                frameHeight = latestFrame?.height ?: 1920,
-                            )
+                        session = resolveSessionState(manualPlacementOverride = null)
                     },
                     modifier = Modifier.weight(1f),
                     enabled = ringBitmap != null,
                 ) {
-                    Text("Thử detect tay")
+                    Text("Detect Hand")
                 }
                 Button(
                     onClick = {
                         val basePlacement =
                             manualPlacement ?: currentSession?.placement ?: run {
-                                sessionResolver.resolve(
-                                    asset = activeAsset,
+                                resolveSessionState(
                                     handPose = null,
                                     measurement = null,
-                                    manualPlacement = null,
-                                    previousSession = null,
-                                    frameWidth = latestFrame?.width ?: 1080,
-                                    frameHeight = latestFrame?.height ?: 1920,
+                                    manualPlacementOverride = null,
+                                    previousSessionOverride = null,
                                 ).placement
                             }
                         manualPlacement = basePlacement
                         manualAdjustEnabled = true
                         session =
                             (currentSession
-                                ?: sessionResolver.resolve(
-                                    asset = activeAsset,
-                                    handPose = handPoseProvider.latestPose(),
-                                    measurement = measurementProvider.latestMeasurement(),
-                                    manualPlacement = basePlacement,
-                                    previousSession = null,
-                                    frameWidth = latestFrame?.width ?: 1080,
-                                    frameHeight = latestFrame?.height ?: 1920,
+                                ?: resolveSessionState(
+                                    manualPlacementOverride = basePlacement,
+                                    previousSessionOverride = null,
                                 )).copy(
                                 mode = TryOnMode.Manual,
                                 placement = basePlacement,
@@ -315,21 +382,22 @@ fun TryOnDemoScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
-                        measureLauncher.launch(
-                            HandMeasureConfig(
-                                targetFinger = TargetFinger.RING,
-                                qualityThresholds =
-                                    QualityThresholds(
-                                        autoCaptureScore = 0.85f,
-                                        bestCandidateProgressScore = 0.56f,
-                                    ),
-                            ),
-                        )
+                        measureLauncher.launch(defaultDemoMeasureConfig())
                     },
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Đo tay")
+                    Text("Measure Hand")
                 }
+                Button(
+                    onClick = {
+                        applyMeasurementHandoff(sampleTryOnDemoHandoff())
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Use Sample Handoff")
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
                         val frame = latestFrame ?: return@Button
@@ -356,13 +424,28 @@ fun TryOnDemoScreen(
                     },
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Export/capture")
+                    Text("Export Capture")
+                }
+                Button(
+                    onClick = {
+                        clearMeasurementHandoff()
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Clear Handoff")
                 }
             }
             exportedPath?.let {
                 Text(
                     text = "Saved: $it",
                     color = Color(0xFFB2FF59),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            latestMeasurementHandoff?.let { handoff ->
+                Text(
+                    text = "Source: ${handoff.sourceLabel}",
+                    color = Color(0xFFE0E0E0),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -408,7 +491,7 @@ private fun RuntimeMetrics?.toRuntimeText(): String {
         } else {
             (1000.0 / metrics.avgUpdateIntervalMs).roundToInt()
         }
-    return "Realtime detect=${"%.1f".format(metrics.avgDetectionMs)}ms update=${hz}Hz memΔ=${metrics.approxMemoryDeltaKb}KB"
+    return "Realtime detect=${"%.1f".format(metrics.avgDetectionMs)}ms update=${hz}Hz memDelta=${metrics.approxMemoryDeltaKb}KB"
 }
 
 private fun HandDetection.toPoseSnapshot(
@@ -422,15 +505,6 @@ private fun HandDetection.toPoseSnapshot(
         landmarks = imageLandmarks.map { point -> LandmarkPoint(x = point.x, y = point.y, z = point.z) },
         confidence = confidence.coerceIn(0f, 1f),
         timestampMs = timestampMs,
-    )
-
-private fun HandMeasureResult.toMeasurementSnapshot(): MeasurementSnapshot =
-    MeasurementSnapshot(
-        equivalentDiameterMm = equivalentDiameterMm.toFloat(),
-        fingerWidthMm = fingerWidthMm.toFloat(),
-        confidence = confidenceScore,
-        mmPerPx = debugMetadata?.mmPerPxX?.toFloat(),
-        usable = confidenceScore >= 0.3f,
     )
 
 private fun saveRenderedBitmap(
@@ -447,8 +521,11 @@ private fun saveRenderedBitmap(
 
 private fun TryOnMode?.toModeLabel(): String =
     when (this) {
-        TryOnMode.Measured -> "Fit theo đo tay"
-        TryOnMode.LandmarkOnly -> "Preview theo landmark"
-        TryOnMode.Manual -> "Tự căn chỉnh"
-        null -> "Tự căn chỉnh"
+        TryOnMode.Measured -> "Measured"
+        TryOnMode.LandmarkOnly -> "Landmark Only"
+        TryOnMode.Manual -> "Manual"
+        null -> "Manual"
     }
+
+private const val DEMO_FALLBACK_FRAME_WIDTH = 1080
+private const val DEMO_FALLBACK_FRAME_HEIGHT = 1920

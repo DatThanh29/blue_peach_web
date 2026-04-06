@@ -25,9 +25,10 @@ class TryOnSessionResolverPolicy(
         frameHeight: Int,
         nowMs: Long = System.currentTimeMillis(),
     ): TryOnSession {
-        val detectedAnchor = handPose?.let(fingerAnchorFactory::createAnchor)
+        val detectedAnchor = handPose?.let(fingerAnchorFactory::createAnchor)?.copy(timestampMs = nowMs)
+        val anchorAgeMs = lastGoodAnchor?.let { nowMs - it.timestampMs }
         val fallbackAnchor =
-            if (detectedAnchor == null && lastGoodAnchor != null && nowMs - lastGoodAnchor!!.timestampMs <= 900L) {
+            if (detectedAnchor == null && lastGoodAnchor != null && anchorAgeMs != null && anchorAgeMs in 0L..900L) {
                 lastGoodAnchor
             } else {
                 null
@@ -61,15 +62,15 @@ class TryOnSessionResolverPolicy(
                         ?: previousSession?.placement
                         ?: defaultPlacement(asset, frameWidth = frameWidth, frameHeight = frameHeight)
             }
-        val stabilizedPlacement = clampPlacementJumps(resolvedPlacement, previousSession?.placement)
-        val biasedPlacement = stabilizedPlacement.copy(rotationDegrees = stabilizedPlacement.rotationDegrees + asset.rotationBiasDeg)
+        val biasedPlacement = resolvedPlacement.copy(rotationDegrees = resolvedPlacement.rotationDegrees + asset.rotationBiasDeg)
+        val stabilizedPlacement = clampPlacementJumps(biasedPlacement, previousSession?.placement)
 
         return TryOnSession(
             asset = asset,
             mode = mode,
             quality = quality,
             anchor = anchor,
-            placement = biasedPlacement,
+            placement = stabilizedPlacement,
             updatedAtMs = nowMs,
         )
     }

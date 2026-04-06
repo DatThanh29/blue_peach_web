@@ -2,6 +2,7 @@ package com.handtryon.coreengine
 
 import com.google.common.truth.Truth.assertThat
 import com.handtryon.coreengine.model.TryOnAssetSource
+import com.handtryon.coreengine.model.TryOnFingerAnchor
 import com.handtryon.coreengine.model.TryOnHandPoseSnapshot
 import com.handtryon.coreengine.model.TryOnInputQuality
 import com.handtryon.coreengine.model.TryOnLandmarkPoint
@@ -151,6 +152,86 @@ class TryOnSessionResolverPolicyTest {
         assertThat(measured.placement.centerY).isEqualTo(146f)
         assertThat(measured.placement.ringWidthPx).isAtMost(116f)
         assertThat(measured.placement.rotationDegrees).isEqualTo(14f)
+    }
+
+    @Test
+    fun uses_now_ms_for_anchor_grace_even_when_pose_timestamp_domain_differs() {
+        val first =
+            resolver.resolve(
+                asset = asset,
+                handPose = ringPose(timestampMs = 10L),
+                measurement = null,
+                manualPlacement = null,
+                previousSession = null,
+                frameWidth = 1080,
+                frameHeight = 1920,
+                nowMs = 1_000_000L,
+            )
+
+        val second =
+            resolver.resolve(
+                asset = asset,
+                handPose = null,
+                measurement = null,
+                manualPlacement = null,
+                previousSession = first,
+                frameWidth = 1080,
+                frameHeight = 1920,
+                nowMs = 1_000_500L,
+            )
+
+        assertThat(second.mode).isEqualTo(TryOnMode.LandmarkOnly)
+        assertThat(second.quality.usedLastGoodAnchor).isTrue()
+        assertThat(second.anchor).isNotNull()
+    }
+
+    @Test
+    fun rotation_bias_does_not_accumulate_drift_when_previous_session_exists() {
+        val fixedAnchorFactory =
+            object : FingerAnchorFactory {
+                override fun createAnchor(pose: TryOnHandPoseSnapshot): TryOnFingerAnchor =
+                    TryOnFingerAnchor(
+                        centerX = 300f,
+                        centerY = 400f,
+                        angleDegrees = 0f,
+                        fingerWidthPx = 100f,
+                        confidence = 0.9f,
+                        timestampMs = pose.timestampMs,
+                    )
+            }
+        val biasedResolver = TryOnSessionResolverPolicy(fingerAnchorFactory = fixedAnchorFactory)
+        val biasedAsset =
+            asset.copy(
+                id = "biased",
+                rotationBiasDeg = 20f,
+            )
+        val first =
+            biasedResolver.resolve(
+                asset = biasedAsset,
+                handPose = ringPose(timestampMs = 1_000L),
+                measurement = null,
+                manualPlacement = null,
+                previousSession = null,
+                frameWidth = 1080,
+                frameHeight = 1920,
+                nowMs = 1_000L,
+            )
+        val second =
+            biasedResolver.resolve(
+                asset = biasedAsset,
+                handPose = ringPose(timestampMs = 2_000L),
+                measurement = null,
+                manualPlacement = null,
+                previousSession = first,
+                frameWidth = 1080,
+                frameHeight = 1920,
+                nowMs = 2_000L,
+            )
+
+        assertThat(first.mode).isEqualTo(TryOnMode.LandmarkOnly)
+        assertThat(second.mode).isEqualTo(TryOnMode.LandmarkOnly)
+        assertThat(first.placement.rotationDegrees).isEqualTo(20f)
+        assertThat(second.placement.rotationDegrees).isEqualTo(20f)
     }
 
     private fun ringPose(timestampMs: Long = 1000L): TryOnHandPoseSnapshot {

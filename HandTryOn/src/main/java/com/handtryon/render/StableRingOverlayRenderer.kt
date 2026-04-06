@@ -66,6 +66,7 @@ class StableRingOverlayRenderer(
     ): TryOnRenderResult {
         val output = baseFrame.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(output)
+        val previousPlacement = lastPlacement
         val stablePlacement =
             drawOverlay(
                 canvas = canvas,
@@ -76,7 +77,7 @@ class StableRingOverlayRenderer(
                 nowMs = nowMs,
                 alpha = 255,
             )
-        val validation = validator.validate(stablePlacement, anchor, lastPlacement, baseFrame.width)
+        val validation = validator.validate(stablePlacement, anchor, previousPlacement, baseFrame.width)
         return TryOnRenderResult(
             bitmap = output,
             mode = mode,
