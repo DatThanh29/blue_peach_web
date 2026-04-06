@@ -66,7 +66,7 @@
 - `:HandTryOn` now has an internal `TryOnEngine` boundary for session resolution orchestration.
 - `TryOnEngine` now returns Android-free engine session/render state models, with compatibility mapping in `TryOnEngineDomainMapper`.
 - Android/runtime/render concerns remain in `:HandTryOn` (CameraX analyzer, bitmap rendering, Compose overlay).
-- First portable extraction now lives in `:handtryon-core` (session resolver policy, temporal smoothing policy, placement validation policy, anchor factory, Android-free models).
+- `:handtryon-core` now also hosts portable engine-facing result/session/render contracts and state-shaping helpers, in addition to resolver/smoothing/validation/anchor policies.
 - `TryOnRenderResult` remains Android-side because it carries `Bitmap`.
 - Detailed status and next steps are tracked in `docs/HANDTRYON_REFACTOR_PATH.md`.
 

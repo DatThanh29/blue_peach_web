@@ -5,7 +5,7 @@
 ### 1) Internal/headless engine-facing layer in `:HandTryOn`
 
 - Added internal `TryOnEngine` (`com.handtryon.engine.TryOnEngine`).
-- Added internal engine request/result models (`com.handtryon.engine.model`).
+- Kept internal engine request model (`com.handtryon.engine.model.TryOnEngineRequest`).
 - Added mapper/adaptation layer (`com.handtryon.engine.compat.TryOnEngineDomainMapper`).
 - Existing public compatibility entry `TryOnSessionResolver` now delegates to `TryOnEngine`.
 
@@ -17,6 +17,8 @@
   - `TemporalPlacementSmootherPolicy`
   - `PlacementValidationPolicy`
   - `DefaultFingerAnchorFactory`
+  - `TryOnEngineResult`, `TryOnEngineSessionState`, `TryOnEngineRenderState`
+  - `TryOnSession.toEngineResult(...)` engine-state shaping helper
 
 ### 3) Compatibility adapters in `:HandTryOn`
 
@@ -32,6 +34,9 @@
   - domain session (`TryOnSession`)
   - render compatibility state (`TryOnRenderState`)
   - wrapped in `TryOnSessionResolution`
+- `TryOnEngineDomainMapper` is the explicit boundary mapper:
+  - engine state (`TryOnEngineResult`) -> compatibility session (`TryOnSession`)
+  - engine render state (`TryOnEngineRenderState`) -> compatibility render input (`TryOnRenderState`)
 - `StableRingOverlayRenderer` accepts `TryOnRenderState` for Android render output generation while keeping `TryOnRenderResult` as the `Bitmap` compatibility output.
 
 ## Current boundaries
@@ -42,12 +47,13 @@
   - Compose overlay integration
   - render output model carrying `Bitmap` (`TryOnRenderResult`)
 - **Engine-facing internal (`:HandTryOn`)**
-  - engine facade + request/result/session/render models + mapper
+  - engine facade + request model + compatibility mapper
   - compatibility wrappers for existing API usage
 - **Portable core (`:handtryon-core`)**
   - session/mode/fallback policy
   - smoothing/validation policy
   - anchor extraction policy
+  - engine-facing result/session/render contracts and shaping helper
   - Android-free session/placement models
 
 ## What intentionally remains Android-only

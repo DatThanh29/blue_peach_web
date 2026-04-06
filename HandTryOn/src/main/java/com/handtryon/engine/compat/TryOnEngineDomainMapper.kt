@@ -10,6 +10,9 @@ import com.handtryon.coreengine.model.TryOnMode as CoreTryOnMode
 import com.handtryon.coreengine.model.TryOnPlacement as CorePlacement
 import com.handtryon.coreengine.model.TryOnPlacementValidation as CorePlacementValidation
 import com.handtryon.coreengine.model.TryOnSession as CoreSession
+import com.handtryon.coreengine.model.TryOnEngineRenderState
+import com.handtryon.coreengine.model.TryOnEngineResult
+import com.handtryon.coreengine.model.TryOnEngineSessionState
 import com.handtryon.core.TryOnSessionResolution
 import com.handtryon.domain.FingerAnchor
 import com.handtryon.domain.HandPoseSnapshot
@@ -22,9 +25,6 @@ import com.handtryon.domain.TryOnInputQuality
 import com.handtryon.domain.TryOnMode
 import com.handtryon.domain.TryOnSession
 import com.handtryon.engine.model.TryOnEngineRequest
-import com.handtryon.engine.model.TryOnEngineRenderState
-import com.handtryon.engine.model.TryOnEngineResult
-import com.handtryon.engine.model.TryOnEngineSessionState
 import com.handtryon.render.model.TryOnRenderState
 
 internal class TryOnEngineDomainMapper {

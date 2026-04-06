@@ -10,9 +10,9 @@ import com.handtryon.domain.RingPlacement
 import com.handtryon.domain.TryOnInputQuality
 import com.handtryon.domain.TryOnMode
 import com.handtryon.domain.TryOnSession
-import com.handtryon.engine.model.TryOnEngineRenderState
-import com.handtryon.engine.model.TryOnEngineResult
-import com.handtryon.engine.model.TryOnEngineSessionState
+import com.handtryon.coreengine.model.TryOnEngineRenderState
+import com.handtryon.coreengine.model.TryOnEngineResult
+import com.handtryon.coreengine.model.TryOnEngineSessionState
 import org.junit.Test
 
 class TryOnEngineDomainMapperTest {
