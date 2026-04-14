@@ -1,38 +1,59 @@
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
-function adminHeaders() {
-  const token = process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "";
-  console.log("Admin token:", token ? `${token.slice(0, 10)}...` : "MISSING");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+type FetchOptions = RequestInit;
+
+async function parseResponse(res: Response) {
+  const contentType = res.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+  const data = isJson ? await res.json() : await res.text();
+
+  if (!res.ok) {
+    const message =
+      typeof data === "object" && data && "error" in data
+        ? String((data as any).error)
+        : `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+
+  return data;
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
-  return res.json() as Promise<T>;
-}
-
-export async function apiAdminGet<T>(path: string): Promise<T> {
+export async function apiFetch(path: string, options: FetchOptions = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
-    cache: "no-store",
-    headers: { ...adminHeaders() },
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.error ?? `GET ${path} failed: ${res.status}`);
-  return json as T;
-}
-
-export async function apiAdminPatch<T>(path: string, body: any): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method: "PATCH",
+    ...options,
     headers: {
       "Content-Type": "application/json",
-      ...adminHeaders(),
+      ...(options.headers || {}),
     },
-    body: JSON.stringify(body),
+    cache: "no-store",
   });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.error ?? `PATCH ${path} failed: ${res.status}`);
-  return json as T;
+
+  return parseResponse(res);
+}
+
+async function buildAdminHeaders(extraHeaders?: HeadersInit) {
+  const { supabase } = await import("@/lib/supabase");
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const accessToken = session?.access_token;
+
+  return {
+    "Content-Type": "application/json",
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    ...(extraHeaders || {}),
+  };
+}
+
+export async function adminFetch(path: string, options: FetchOptions = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: await buildAdminHeaders(options.headers),
+    cache: "no-store",
+  });
+
+  return parseResponse(res);
 }

@@ -5,41 +5,90 @@ const router = Router();
 
 /**
  * GET /api/products
- * Query params:
- * - q: keyword search (optional)
- * - categoryId: uuid (optional)
- * - limit, offset: pagination (optional)
  */
 router.get("/", async (req, res) => {
   const q = (req.query.q as string | undefined)?.trim();
   const categoryId = (req.query.categoryId as string | undefined)?.trim();
+  const sort = (req.query.sort as string | undefined)?.trim();
   const limit = Number(req.query.limit ?? 20);
   const offset = Number(req.query.offset ?? 0);
 
   let query = supabase
     .from("products")
     .select(
-      "ma_san_pham, sku, ten_san_pham, gia_ban, gia_goc, phan_tram_giam, so_luong_ton, primary_image, ma_danh_muc, ngay_tao",
+      "ma_san_pham, sku, ten_san_pham, gia_ban, gia_goc, phan_tram_giam, so_luong_ton, primary_image, ma_danh_muc, ngay_tao, is_bestseller",
       { count: "exact" }
     )
-    .order("ngay_tao", { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  // filter public products (if you want double safety besides RLS)
-  query = query.eq("trang_thai_hien_thi", true).eq("is_available", true);
+    .eq("trang_thai_hien_thi", true)
+    .eq("is_available", true);
 
   if (categoryId) query = query.eq("ma_danh_muc", categoryId);
   if (q) query = query.ilike("ten_san_pham", `%${q}%`);
 
+  if (sort === "best") {
+    query = query.eq("is_bestseller", true).order("ngay_tao", { ascending: false });
+  } else {
+    query = query.order("ngay_tao", { ascending: false });
+  }
+
+  query = query.range(offset, offset + limit - 1);
+
   const { data, error, count } = await query;
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
 
-  res.json({
+  return res.json({
     items: data ?? [],
     total: count ?? 0,
     limit,
     offset,
+  });
+});
+
+/**
+ * GET /api/products/:id/reviews
+ */
+router.get("/:id/reviews", async (req, res) => {
+  const productId = req.params.id;
+
+  const { data: reviewItems, error: reviewsError } = await supabase
+    .from("product_reviews")
+    .select(`
+      ma_danh_gia,
+      ten_nguoi_danh_gia,
+      so_sao,
+      noi_dung,
+      ngay_tao
+    `)
+    .eq("ma_san_pham", productId)
+    .eq("trang_thai", "approved")
+    .eq("la_xoa_mem", false)
+    .order("ngay_tao", { ascending: false });
+
+  if (reviewsError) {
+    return res.status(500).json({ error: reviewsError.message });
+  }
+
+  const items = reviewItems ?? [];
+  const totalReviews = items.length;
+  const averageRating =
+    totalReviews > 0
+      ? Number(
+          (
+            items.reduce((sum, item) => sum + Number(item.so_sao || 0), 0) /
+            totalReviews
+          ).toFixed(1)
+        )
+      : 0;
+
+  return res.json({
+    summary: {
+      average_rating: averageRating,
+      total_reviews: totalReviews,
+    },
+    items,
   });
 });
 
@@ -49,26 +98,38 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const id = req.params.id;
 
-  const { data, error } = await supabase
+  const { data: product, error: productError } = await supabase
     .from("products")
-    .select(
-      "ma_san_pham, sku, ten_san_pham, mo_ta_san_pham, gia_ban, gia_goc, phan_tram_giam, so_luong_ton, primary_image, url_san_pham, ma_danh_muc, ngay_tao, ngay_cap_nhat"
-    )
+    .select(`
+      *,
+      product_images (*)
+    `)
     .eq("ma_san_pham", id)
     .maybeSingle();
 
-  if (error) return res.status(500).json({ error: error.message });
-  if (!data) return res.status(404).json({ error: "Product not found" });
+  if (productError) {
+    return res.status(500).json({ error: productError.message });
+  }
 
-  // Optional: fetch images
-  const { data: images } = await supabase
+  if (!product) {
+    return res.status(404).json({ error: "Product not found" });
+  }
+
+  const { data: images, error: imagesError } = await supabase
     .from("product_images")
     .select("duong_dan_anh, la_anh_chinh, thu_tu")
     .eq("ma_san_pham", id)
     .order("la_anh_chinh", { ascending: false })
     .order("thu_tu", { ascending: true });
 
-  res.json({ ...data, images: images ?? [] });
+  if (imagesError) {
+    return res.status(500).json({ error: imagesError.message });
+  }
+
+  return res.json({
+    ...product,
+    images: images ?? [],
+  });
 });
 
 export default router;
