@@ -27,6 +27,7 @@ type ShippingAddressSnapshot = {
 };
 
 type CreateOrderBody = {
+  customer_user_id?: string | null;
   customer_name: string;
   phone: string;
   address: string;
@@ -192,7 +193,7 @@ router.post("/", async (req, res) => {
   const { data: created, error: orderErr } = await supabase
     .from("orders")
     .insert({
-      ma_nguoi_dung: null,
+      ma_nguoi_dung: body.customer_user_id ?? null,
       dia_chi_giao_hang_snapshot: dia_chi_snapshot,
       ghi_chu: body.note ?? null,
       tong_tien_hang,
@@ -251,6 +252,26 @@ router.post("/", async (req, res) => {
   }
 
   await increaseCouponUsage(couponId);
+
+  if (body.customer_user_id) {
+    await supabase.from("notifications").insert({
+      user_id: body.customer_user_id,
+      type: "order_created",
+      title: "Đơn hàng đã được tạo",
+      message: `Đơn hàng ${orderId} của bạn đã được tạo thành công.`,
+      link: "/account/orders",
+      is_read: false,
+    });
+  }
+    await supabase.from("admin_notifications").insert({
+    type: "order_created",
+    title: `Đơn hàng mới - ${orderId}`,
+    message: `Có đơn hàng mới vừa được tạo với tổng thanh toán ${Number(
+      tong_thanh_toan
+    ).toLocaleString("vi-VN")}đ.`,
+    link: `/admin/orders/${orderId}`,
+    is_read: false,
+  });
 
   res.status(201).json({
     ok: true,

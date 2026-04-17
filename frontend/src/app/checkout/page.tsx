@@ -216,6 +216,7 @@ export default function CheckoutPage() {
 
     try {
       const payload = {
+        customer_user_id: user?.id || null,
         customer_name: selectedAddress.recipient_name || "",
         phone: selectedAddress.recipient_phone || "",
         address: renderFullAddress(selectedAddress),

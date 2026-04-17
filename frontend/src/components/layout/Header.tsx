@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import CartIcon from "@/components/CartIcon";
 import Toast from "@/components/Toast";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
+import { useNotifications } from "@/hooks/useNotifications";
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -24,6 +25,7 @@ export default function Header() {
     isEmailVerified,
     signOut,
   } = useCustomerAuth();
+  const { unreadCount } = useNotifications();
 
   const [toast, setToast] = useState<{
     message: string;
@@ -155,6 +157,7 @@ export default function Header() {
                 displayName={profile?.full_name || user?.email || null}
                 loggingOut={loggingOut}
                 onLogout={handleLogout}
+                unreadCount={unreadCount}
               />
             </div>
 
@@ -299,6 +302,7 @@ export default function Header() {
                   displayName={profile?.full_name || user?.email || null}
                   loggingOut={loggingOut}
                   onLogout={handleLogout}
+                  unreadCount={unreadCount}
                 />
 
                 <HeaderIconButton label="Tìm kiếm" dark={false}>
@@ -345,6 +349,7 @@ function HeaderCustomerActions({
   displayName,
   loggingOut,
   onLogout,
+  unreadCount,
 }: {
   dark: boolean;
   isLoading: boolean;
@@ -353,6 +358,7 @@ function HeaderCustomerActions({
   displayName: string | null;
   loggingOut: boolean;
   onLogout: () => void;
+  unreadCount: number;
 }) {
   if (isLoading) {
     return (
@@ -378,7 +384,7 @@ function HeaderCustomerActions({
     );
   }
 
-  if (!isEmailVerified) {
+    if (!isEmailVerified) {
     return (
       <div className="flex items-center gap-2">
         <TopUtilityLink href="/verify-email" label="Xác minh email" dark={dark} />
@@ -402,18 +408,21 @@ function HeaderCustomerActions({
 
   return (
     <div className="flex items-center gap-2">
-      <TopUtilityLink href="/account" label="Tài khoản" dark={dark} />
+      <HeaderAccountLink dark={dark} />
+
+      <HeaderNotificationLink dark={dark} unreadCount={unreadCount} />
+
       <button
         type="button"
         onClick={onLogout}
         disabled={loggingOut}
         title={displayName || "Đăng xuất"}
         className={[
-          "rounded-full px-3 py-2 text-[13px] font-semibold transition",
+          "rounded-full px-3.5 py-2 text-[13px] font-semibold transition",
           "disabled:cursor-not-allowed disabled:opacity-60",
           dark
             ? "text-white/90 hover:bg-white/10 hover:text-white"
-            : "text-black hover:bg-white/85 hover:text-black",
+            : "text-black/80 hover:bg-white/85 hover:text-black",
         ].join(" ")}
       >
         {loggingOut ? "Đang thoát..." : "Đăng xuất"}
@@ -442,6 +451,55 @@ function TopUtilityLink({
       ].join(" ")}
     >
       {label}
+    </Link>
+  );
+}
+
+function HeaderNotificationLink({
+  dark,
+  unreadCount,
+}: {
+  dark: boolean;
+  unreadCount: number;
+}) {
+  const badge = unreadCount > 99 ? "99+" : unreadCount;
+
+  return (
+    <Link
+      href="/account/notifications"
+      aria-label="Thông báo"
+      className={[
+        "relative inline-flex h-10 w-10 items-center justify-center rounded-full transition",
+        dark
+          ? "text-white/90 hover:bg-white/10 hover:text-white"
+          : "text-black hover:bg-white/85 hover:text-black",
+      ].join(" ")}
+    >
+      <BellOutlineIcon />
+
+      {unreadCount > 0 ? (
+        <span className="absolute -right-1 -top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#D14B5A] px-1 text-[10px] font-semibold leading-none text-white shadow-sm">
+          {badge}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+function HeaderAccountLink({ dark }: { dark: boolean }) {
+  return (
+    <Link
+      href="/account"
+      aria-label="Tài khoản"
+      title="Tài khoản"
+      className={[
+        "relative inline-flex h-10 w-10 items-center justify-center rounded-full transition",
+        dark
+          ? "text-white/90 hover:bg-white/10 hover:text-white"
+          : "text-black hover:bg-white/85 hover:text-black",
+      ].join(" ")}
+    >
+      <UserOutlineIcon />
     </Link>
   );
 }
@@ -540,7 +598,7 @@ function MegaMenu() {
 
           <div className="overflow-hidden rounded-2xl bg-zinc-100">
             <img
-              src="/menu-preview.jpg"
+              src="/home/menu-preview.jpg"
               alt="Preview"
               className="h-full w-full object-cover"
             />
@@ -633,6 +691,44 @@ function LocationIcon() {
     >
       <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z" />
       <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function BellOutlineIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="opacity-95"
+    >
+      <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" />
+      <path d="M10 21a2 2 0 0 0 4 0" />
+    </svg>
+  );
+}
+
+function UserOutlineIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="opacity-95"
+    >
+      <path d="M20 21a8 8 0 0 0-16 0" />
+      <circle cx="12" cy="8" r="4" />
     </svg>
   );
 }

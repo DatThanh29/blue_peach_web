@@ -41,6 +41,26 @@ type ProductReviewsResponse = {
   items: ProductReview[];
 };
 
+type RelatedProduct = {
+  ma_san_pham: string;
+  sku?: string;
+  ten_san_pham: string;
+  gia_ban: number;
+  gia_goc?: number;
+  phan_tram_giam?: number;
+  so_luong_ton?: number;
+  primary_image: string | null;
+  ma_danh_muc?: string | null;
+  ngay_tao?: string;
+  is_bestseller?: boolean;
+};
+
+type RelatedProductsResponse = {
+  items: RelatedProduct[];
+  total: number;
+  limit: number;
+};
+
 export default async function ProductDetailPage({
   params,
 }: {
@@ -49,7 +69,7 @@ export default async function ProductDetailPage({
   const { id } = await params;
 
   try {
-    const [product, reviewsData] = await Promise.all([
+    const [product, reviewsData, relatedProductsRes] = await Promise.all([
       apiFetch(`/products/${id}`),
       apiFetch(`/products/${id}/reviews`).catch(() => ({
         summary: {
@@ -58,12 +78,18 @@ export default async function ProductDetailPage({
         },
         items: [],
       })),
+      apiFetch(`/products/${id}/related?limit=4`).catch(() => ({
+        items: [],
+        total: 0,
+        limit: 4,
+      })),
     ]);
 
     return (
       <ProductDetailClient
         product={product as ProductDetail}
         reviewsData={reviewsData as ProductReviewsResponse}
+        relatedProducts={(relatedProductsRes as RelatedProductsResponse).items ?? []}
       />
     );
   } catch {

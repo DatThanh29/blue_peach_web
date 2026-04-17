@@ -12,6 +12,8 @@ router.get("/", async (req, res) => {
   const sort = (req.query.sort as string | undefined)?.trim();
   const limit = Number(req.query.limit ?? 20);
   const offset = Number(req.query.offset ?? 0);
+  const minPrice = Number(req.query.minPrice ?? 0);
+  const maxPrice = Number(req.query.maxPrice ?? 0);
 
   let query = supabase
     .from("products")
@@ -24,6 +26,14 @@ router.get("/", async (req, res) => {
 
   if (categoryId) query = query.eq("ma_danh_muc", categoryId);
   if (q) query = query.ilike("ten_san_pham", `%${q}%`);
+
+  if (Number.isFinite(minPrice) && minPrice > 0) {
+    query = query.gte("gia_ban", minPrice);
+  }
+
+  if (Number.isFinite(maxPrice) && maxPrice > 0) {
+    query = query.lte("gia_ban", maxPrice);
+  }
 
   if (sort === "best") {
     query = query.eq("is_bestseller", true).order("ngay_tao", { ascending: false });
@@ -76,11 +86,11 @@ router.get("/:id/reviews", async (req, res) => {
   const averageRating =
     totalReviews > 0
       ? Number(
-          (
-            items.reduce((sum, item) => sum + Number(item.so_sao || 0), 0) /
-            totalReviews
-          ).toFixed(1)
-        )
+        (
+          items.reduce((sum, item) => sum + Number(item.so_sao || 0), 0) /
+          totalReviews
+        ).toFixed(1)
+      )
       : 0;
 
   return res.json({
@@ -95,6 +105,81 @@ router.get("/:id/reviews", async (req, res) => {
 /**
  * GET /api/products/:id
  */
+/**
+ * GET /api/products/:id/related
+ */
+router.get("/:id/related", async (req, res) => {
+  const id = req.params.id;
+  const limit = Math.min(Number(req.query.limit ?? 4), 8);
+
+  const { data: currentProduct, error: currentProductError } = await supabase
+    .from("products")
+    .select("ma_san_pham, ma_danh_muc")
+    .eq("ma_san_pham", id)
+    .maybeSingle();
+
+  if (currentProductError) {
+    return res.status(500).json({ error: currentProductError.message });
+  }
+
+  if (!currentProduct) {
+    return res.status(404).json({ error: "Product not found" });
+  }
+
+  let relatedQuery = supabase
+    .from("products")
+    .select(
+      "ma_san_pham, sku, ten_san_pham, gia_ban, gia_goc, phan_tram_giam, so_luong_ton, primary_image, ma_danh_muc, ngay_tao, is_bestseller",
+      { count: "exact" }
+    )
+    .eq("trang_thai_hien_thi", true)
+    .eq("is_available", true)
+    .neq("ma_san_pham", id)
+    .order("is_bestseller", { ascending: false })
+    .order("ngay_tao", { ascending: false })
+    .range(0, limit - 1);
+
+  if (currentProduct.ma_danh_muc) {
+    relatedQuery = relatedQuery.eq("ma_danh_muc", currentProduct.ma_danh_muc);
+  }
+
+  const { data: relatedItems, error: relatedError } = await relatedQuery;
+
+  if (relatedError) {
+    return res.status(500).json({ error: relatedError.message });
+  }
+
+  let items = relatedItems ?? [];
+
+  if (items.length < limit) {
+    const excludeIds = [id, ...items.map((item) => item.ma_san_pham)];
+
+    const { data: fallbackItems, error: fallbackError } = await supabase
+      .from("products")
+      .select(
+        "ma_san_pham, sku, ten_san_pham, gia_ban, gia_goc, phan_tram_giam, so_luong_ton, primary_image, ma_danh_muc, ngay_tao, is_bestseller"
+      )
+      .eq("trang_thai_hien_thi", true)
+      .eq("is_available", true)
+      .not("ma_san_pham", "in", `(${excludeIds.map((x) => `"${x}"`).join(",")})`)
+      .order("is_bestseller", { ascending: false })
+      .order("ngay_tao", { ascending: false })
+      .range(0, limit - items.length - 1);
+
+    if (fallbackError) {
+      return res.status(500).json({ error: fallbackError.message });
+    }
+
+    items = [...items, ...(fallbackItems ?? [])];
+  }
+
+  return res.json({
+    items,
+    total: items.length,
+    limit,
+  });
+});
+
 router.get("/:id", async (req, res) => {
   const id = req.params.id;
 

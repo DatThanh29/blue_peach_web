@@ -5,7 +5,9 @@ import Link from "next/link";
 import { addToCart } from "@/lib/cart";
 import Toast from "@/components/Toast";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
+import { useWishlist } from "@/hooks/useWishlist";
 import { usePathname, useRouter } from "next/navigation";
+import ProductCard from "@/components/ProductCard";
 
 type ProductDetail = {
   ma_san_pham: string;
@@ -47,6 +49,21 @@ type ProductReviewsResponse = {
 type ProductDetailClientProps = {
   product: ProductDetail;
   reviewsData: ProductReviewsResponse;
+  relatedProducts: RelatedProduct[];
+};
+
+type RelatedProduct = {
+  ma_san_pham: string;
+  sku?: string;
+  ten_san_pham: string;
+  gia_ban: number;
+  gia_goc?: number;
+  phan_tram_giam?: number;
+  so_luong_ton?: number;
+  primary_image: string | null;
+  ma_danh_muc?: string | null;
+  ngay_tao?: string;
+  is_bestseller?: boolean;
 };
 
 function flyToCart(imageSrc?: string) {
@@ -108,17 +125,48 @@ function StarRating({ value }: { value: number }) {
   );
 }
 
+function InfoPill({
+  children,
+  tone = "default",
+}: {
+  children: React.ReactNode;
+  tone?: "default" | "soft" | "accent";
+}) {
+  const toneClass =
+    tone === "accent"
+      ? "border-[#D8CDD9] bg-[#F5EDF6] text-[#6D6179]"
+      : tone === "soft"
+        ? "border-[#DCD4C8] bg-[#F4EEE5] text-[#7C7267]"
+        : "border-[#DED8CC] bg-white/70 text-[#66707A]";
+
+  return (
+    <span
+      className={[
+        "inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-medium tracking-[0.04em]",
+        toneClass,
+      ].join(" ")}
+    >
+      {children}
+    </span>
+  );
+}
+
 export default function ProductDetailClient({
   product,
   reviewsData,
+  relatedProducts,
 }: ProductDetailClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated } = useCustomerAuth();
+  const { isWishlisted, toggleWishlist, isToggling } = useWishlist();
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const wishlisted = isWishlisted(product.ma_san_pham);
+  const wishlistLoading = isToggling(product.ma_san_pham);
 
   const displayImages = useMemo(() => {
     if (product.images && product.images.length > 0) {
@@ -205,6 +253,27 @@ export default function ProductDetailClient({
     setToastMessage("Đã thêm vào giỏ hàng");
   };
 
+  async function handleToggleWishlist() {
+    if (!isAuthenticated) {
+      router.push(
+        `/login?redirect=${encodeURIComponent(pathname || `/products/${product.ma_san_pham}`)}`
+      );
+      return;
+    }
+
+    try {
+      await toggleWishlist(product.ma_san_pham);
+      setToastMessage(
+        wishlisted
+          ? "Đã xoá khỏi danh sách yêu thích"
+          : "Đã thêm vào danh sách yêu thích"
+      );
+    } catch (error) {
+      console.error("[ProductDetailClient] toggleWishlist failed:", error);
+      setToastMessage("Không thể cập nhật wishlist lúc này");
+    }
+  }
+
   const goPrevImage = () => {
     if (displayImages.length <= 1) return;
     setSelectedImage((prev) => (prev - 1 + displayImages.length) % displayImages.length);
@@ -218,8 +287,8 @@ export default function ProductDetailClient({
   return (
     <>
       <main className="bg-[#f7f6f2] text-[#1F1F1F]">
-        <section className="border-b border-[#DED8CC] bg-[#e9e4da] pt-3 md:pt-4">
-          <div className="bp-container py-10 md:py-14">
+        <section className="bp-surface bp-surface-warm border-b border-[#DDD3C6] pt-2 md:pt-3">
+          <div className="bp-container py-6 md:py-8">
             <Link
               href="/products"
               className="bp-link inline-block text-sm text-[#66707A]"
@@ -227,36 +296,33 @@ export default function ProductDetailClient({
               ← Quay lại sản phẩm
             </Link>
 
-            <div className="mt-6 max-w-3xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#7B8791]">
-                Blue Peach
-              </p>
-
-              <h1 className="font-heading mt-4 text-4xl font-medium leading-[0.96] tracking-[-0.02em] text-[#1F1F1F] md:text-5xl">
-                {product.ten_san_pham}
-              </h1>
-
-              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[#66707A]">
-                <span>SKU: {product.sku}</span>
+            <div className="mt-6 max-w-4xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <InfoPill tone="soft">Blue Peach</InfoPill>
+                <InfoPill>SKU: {product.sku}</InfoPill>
                 {product.ngay_tao ? (
-                  <span>
+                  <InfoPill>
                     Ngày tạo: {new Date(product.ngay_tao).toLocaleDateString("vi-VN")}
-                  </span>
+                  </InfoPill>
                 ) : null}
-                <span>
+                <InfoPill tone="accent">
                   {reviewSummary.average_rating.toFixed(1)}/5 · {reviewSummary.total_reviews} đánh giá
-                </span>
+                </InfoPill>
               </div>
+
+              <p className="mt-4 text-sm text-[#8C8478]">
+                Khám phá chi tiết thiết kế bạc được tuyển chọn từ Blue Peach.
+              </p>
             </div>
           </div>
         </section>
 
-        <section className="py-10 md:py-14">
+        <section className="bp-surface bp-surface-plain py-8 md:py-10">
           <div className="bp-container">
-            <div className="grid gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:gap-14">
+            <div className="grid gap-8 lg:grid-cols-[1.04fr_0.96fr] lg:gap-10">
               <div>
                 {displayImages.length > 0 ? (
-                  <div className="grid gap-4 lg:grid-cols-[110px_minmax(0,1fr)]">
+                  <div className="grid gap-4 lg:grid-cols-[118px_minmax(0,1fr)]">
                     <div className="order-2 grid grid-cols-4 gap-3 lg:order-1 lg:grid-cols-1">
                       {displayImages.map((img, idx) => {
                         const active = idx === selectedImage;
@@ -267,23 +333,23 @@ export default function ProductDetailClient({
                             type="button"
                             onClick={() => setSelectedImage(idx)}
                             className={[
-                              "aspect-square overflow-hidden border bg-[#F8F8F5] transition duration-300 hover:scale-[1.03] shadow-sm",
+                              "group aspect-square overflow-hidden rounded-[20px] border bg-[#F8F8F5] transition duration-300",
                               active
-                                ? "border-[#1F1F1F] ring-1 ring-[#1F1F1F]/20"
-                                : "border-[#DED8CC] hover:border-[#BFB6A8]",
+                                ? "border-[#1F1F1F] ring-1 ring-[#1F1F1F]/15 shadow-[0_10px_24px_rgba(0,0,0,0.06)]"
+                                : "border-[#DED8CC] hover:-translate-y-[1px] hover:border-[#BFB6A8] hover:shadow-[0_10px_20px_rgba(0,0,0,0.04)]",
                             ].join(" ")}
                           >
                             <img
                               src={img.duong_dan_anh}
                               alt={`${product.ten_san_pham} ${idx + 1}`}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
                             />
                           </button>
                         );
                       })}
                     </div>
 
-                    <div className="order-1 border border-[#DED8CC] bg-[#F8F8F5] lg:order-2">
+                    <div className="order-1 overflow-hidden rounded-[28px] border border-[#DED8CC] bg-[linear-gradient(180deg,#FBFAF7_0%,#F3EEE7_100%)] shadow-[0_16px_40px_rgba(0,0,0,0.05)] lg:order-2">
                       <button
                         type="button"
                         id="product-main-image"
@@ -294,116 +360,151 @@ export default function ProductDetailClient({
                         <img
                           src={activeImage?.duong_dan_anh}
                           alt={product.ten_san_pham}
-                          className="max-h-full max-w-full object-contain transition duration-500 ease-out group-hover:scale-125"
+                          className="max-h-full max-w-full object-contain transition duration-700 ease-out group-hover:scale-[1.08]"
                         />
 
-                        <span className="pointer-events-none absolute bottom-4 right-4 rounded-full border border-[#DED8CC] bg-white/90 px-3 py-1 text-[11px] font-medium text-[#1F1F1F] opacity-0 shadow-sm transition group-hover:opacity-100">
-                          Bấm để xem lớn
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/10 to-transparent opacity-70" />
+
+                        <span className="pointer-events-none absolute bottom-5 right-5 rounded-full border border-white/40 bg-white/85 px-3.5 py-1.5 text-[11px] font-medium text-[#1F1F1F] shadow-sm backdrop-blur opacity-0 transition group-hover:opacity-100">
+                          Bấm để xem ảnh lớn
                         </span>
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex aspect-square items-center justify-center border border-[#DED8CC] bg-[#F8F8F5] text-sm text-[#66707A]">
+                  <div className="flex aspect-square items-center justify-center rounded-[28px] border border-[#DED8CC] bg-[#F8F8F5] text-sm text-[#66707A]">
                     Chưa có hình ảnh
                   </div>
                 )}
               </div>
 
               <div>
-                <div className="border border-[#DED8CC] bg-[#F8F8F5] p-6 md:p-8">
-                  <p className="text-[12px] font-medium text-[#8C8478]">
-                    {inStock ? "Còn hàng" : "Hết hàng"}
-                  </p>
+                <div className="overflow-hidden rounded-[28px] border border-[#DED8CC] bg-[linear-gradient(180deg,#FBFAF7_0%,#F7F3EC_100%)] shadow-[0_18px_44px_rgba(0,0,0,0.05)]">
+                  <div className="border-b border-[#E6DED2] px-6 py-5 md:px-8">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <InfoPill tone={inStock ? "soft" : "default"}>
+                        {inStock ? "Còn hàng" : "Hết hàng"}
+                      </InfoPill>
 
-                  <h2 className="mt-3 text-[24px] font-medium leading-snug text-[#111111] md:text-[30px]">
-                    {product.ten_san_pham}
-                  </h2>
+                      {hasDiscount ? (
+                        <InfoPill tone="accent">Giảm {product.phan_tram_giam}%</InfoPill>
+                      ) : null}
+                    </div>
 
-                  <div className="mt-4 flex items-center gap-3">
-                    <StarRating value={Math.round(reviewSummary.average_rating)} />
-                    <span className="text-sm text-[#66707A]">
-                      {reviewSummary.average_rating.toFixed(1)} • {reviewSummary.total_reviews} đánh giá
-                    </span>
+                    <h2 className="mt-4 max-w-[16ch] text-[24px] font-medium leading-[1.12] text-[#111111] md:text-[29px]">
+                      {product.ten_san_pham}
+                    </h2>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <StarRating value={Math.round(reviewSummary.average_rating)} />
+                      <span className="text-sm text-[#66707A]">
+                        {reviewSummary.average_rating.toFixed(1)} • {reviewSummary.total_reviews} đánh giá
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm text-[#8C8478]">
+                      Mã sản phẩm: {product.sku}
+                    </p>
                   </div>
 
-                  <div className="mt-6 border-t border-[#DED8CC] pt-6">
+                  <div className="px-6 py-6 md:px-8">
                     {hasDiscount && product.gia_goc ? (
                       <>
-                        <div className="text-[28px] font-medium text-[#111111] md:text-[32px]">
+                        <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+                          <div className="text-[30px] font-medium tracking-[-0.02em] text-[#111111] md:text-[36px]">
+                            {Number(product.gia_ban).toLocaleString("vi-VN")}đ
+                          </div>
+
+                          <span className="pb-1 text-[16px] text-[#8C8478] line-through">
+                            {Number(product.gia_goc).toLocaleString("vi-VN")}đ
+                          </span>
+                        </div>
+
+                        <p className="mt-3 text-sm text-[#8C8478]">
+                          Mức giá ưu đãi dành cho thiết kế đang được yêu thích tại Blue Peach.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-[30px] font-medium tracking-[-0.02em] text-[#111111] md:text-[36px]">
                           {Number(product.gia_ban).toLocaleString("vi-VN")}đ
                         </div>
 
-                        <div className="mt-3 flex flex-wrap items-center gap-3">
-                          <span className="text-[16px] text-[#8C8478] line-through">
-                            {Number(product.gia_goc).toLocaleString("vi-VN")}đ
-                          </span>
-                          <span className="border border-[#DED8CC] px-3 py-1 text-[12px] font-medium text-[#1F1F1F]">
-                            -{product.phan_tram_giam}%
-                          </span>
-                        </div>
+                        <p className="mt-3 text-sm text-[#8C8478]">
+                          Thiết kế bạc tinh giản với mức giá phù hợp để đồng hành mỗi ngày.
+                        </p>
                       </>
-                    ) : (
-                      <div className="text-[28px] font-medium text-[#111111] md:text-[32px]">
-                        {Number(product.gia_ban).toLocaleString("vi-VN")}đ
-                      </div>
                     )}
-                  </div>
 
-                  <div className="mt-6 border-t border-[#DED8CC] pt-6">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-sm text-[#66707A]">Tình trạng tồn kho</span>
-                      <span
+                    <div className="mt-6 grid gap-3 rounded-[22px] border border-[#E8E0D4] bg-white/70 p-4 text-sm text-[#66707A]">
+                      <div className="flex items-center justify-between gap-4">
+                        <span>Tình trạng tồn kho</span>
+                        <span
+                          className={[
+                            "font-medium",
+                            inStock ? "text-[#1F1F1F]" : "text-[#8C8478]",
+                          ].join(" ")}
+                        >
+                          {inStock ? `${product.so_luong_ton} sản phẩm có sẵn` : "Đã hết hàng"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span>Chất liệu</span>
+                        <span className="font-medium text-[#1F1F1F]">Trang sức bạc</span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span>Phong cách</span>
+                        <span className="font-medium text-[#1F1F1F]">Tối giản & nữ tính</span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span>Đóng gói</span>
+                        <span className="font-medium text-[#1F1F1F]">Sẵn sàng làm quà tặng</span>
+                      </div>
+                    </div>
+
+                    {product.mo_ta_san_pham ? (
+                      <div className="mt-6 rounded-[22px] border border-[#E8E0D4] bg-white/70 p-5">
+                        <h3 className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[#66707A]">
+                          Mô tả sản phẩm
+                        </h3>
+                        <div className="mt-4 text-sm leading-7 text-[#555C63]">
+                          {product.mo_ta_san_pham}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-6 space-y-3">
+                      <button
+                        type="button"
+                        onClick={handleToggleWishlist}
+                        disabled={wishlistLoading}
                         className={[
-                          "text-sm font-medium",
-                          inStock ? "text-[#1F1F1F]" : "text-[#8C8478]",
+                          "inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border text-sm font-medium transition",
+                          wishlisted
+                            ? "border-[#D14B5A] bg-[#FFF7F8] text-[#D14B5A]"
+                            : "border-[#DED8CC] bg-white text-[#1F1F1F] hover:border-[#1F1F1F]/30 hover:bg-[#FCFBF8]",
+                          wishlistLoading ? "cursor-not-allowed opacity-60" : "",
                         ].join(" ")}
                       >
-                        {inStock ? `${product.so_luong_ton} sản phẩm có sẵn` : "Đã hết hàng"}
-                      </span>
-                    </div>
-                  </div>
+                        <HeartIcon active={wishlisted} />
+                        <span>{wishlisted ? "Đã lưu yêu thích" : "Lưu vào yêu thích"}</span>
+                      </button>
 
-                  {product.mo_ta_san_pham ? (
-                    <div className="mt-6 border-t border-[#DED8CC] pt-6">
-                      <h3 className="text-[13px] font-semibold uppercase tracking-[0.18em] text-[#66707A]">
-                        Mô tả sản phẩm
-                      </h3>
-                      <div className="mt-4 text-sm leading-7 text-[#555C63]">
-                        {product.mo_ta_san_pham}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-8">
-                    <button
-                      onClick={handleAddToCart}
-                      disabled={!inStock}
-                      className={[
-                        "inline-flex h-12 w-full items-center justify-center border text-sm font-medium transition",
-                        inStock
-                          ? "border-[#1F1F1F] bg-[#1F1F1F] text-white hover:opacity-92"
-                          : "cursor-not-allowed border-[#DED8CC] bg-[#E8E3DA] text-[#8C8478]",
-                      ].join(" ")}
-                    >
-                      {inStock ? "Thêm vào giỏ hàng" : "Hết hàng"}
-                    </button>
-                  </div>
-
-                  <div className="mt-6 grid gap-3 border-t border-[#DED8CC] pt-6 text-sm text-[#66707A]">
-                    <div className="flex items-center justify-between gap-4">
-                      <span>Chất liệu</span>
-                      <span className="text-[#1F1F1F]">Trang sức bạc</span>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-4">
-                      <span>Phong cách</span>
-                      <span className="text-[#1F1F1F]">Tối giản & nữ tính</span>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-4">
-                      <span>Đóng gói</span>
-                      <span className="text-[#1F1F1F]">Sẵn sàng làm quà tặng</span>
+                      <button
+                        type="button"
+                        onClick={handleAddToCart}
+                        disabled={!inStock}
+                        className={[
+                          "inline-flex h-12 w-full items-center justify-center rounded-full border text-sm font-medium transition",
+                          inStock
+                            ? "border-[#1F1F1F] bg-[#1F1F1F] text-white hover:opacity-92"
+                            : "cursor-not-allowed border-[#DED8CC] bg-[#E8E3DA] text-[#8C8478]",
+                        ].join(" ")}
+                      >
+                        {inStock ? "Thêm vào giỏ hàng" : "Hết hàng"}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -412,10 +513,10 @@ export default function ProductDetailClient({
           </div>
         </section>
 
-        <section className="border-t border-[#DED8CC] py-10 md:py-14">
+        <section className="bp-surface bp-surface-blue-soft border-t border-[#DED8CC] py-12 md:py-16">
           <div className="bp-container">
-            <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-12">
-              <div className="border border-[#DED8CC] bg-[#F8F8F5] p-6 md:p-8">
+            <div className="grid gap-8 lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-12">
+              <div className="rounded-[28px] border border-[#DED8CC] bg-[linear-gradient(180deg,#FBFAF7_0%,#F4EEE5_100%)] p-6 shadow-[0_14px_34px_rgba(0,0,0,0.04)] md:p-8">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#7B8791]">
                   Đánh giá khách hàng
                 </p>
@@ -445,7 +546,7 @@ export default function ProductDetailClient({
                   reviewItems.map((review) => (
                     <article
                       key={review.ma_danh_gia}
-                      className="border border-[#DED8CC] bg-[#F8F8F5] p-5 md:p-6"
+                      className="rounded-[24px] border border-[#DED8CC] bg-white/80 p-5 shadow-[0_10px_24px_rgba(0,0,0,0.03)] md:p-6"
                     >
                       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div>
@@ -468,7 +569,7 @@ export default function ProductDetailClient({
                     </article>
                   ))
                 ) : (
-                  <div className="border border-dashed border-[#DED8CC] bg-[#F8F8F5] p-8 text-center">
+                  <div className="rounded-[24px] border border-dashed border-[#DED8CC] bg-white/75 p-8 text-center">
                     <p className="text-sm font-medium text-[#1F1F1F]">
                       Chưa có đánh giá hiển thị
                     </p>
@@ -479,6 +580,64 @@ export default function ProductDetailClient({
                 )}
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="bp-surface bp-surface-warm border-t border-[#DED8CC] py-12 md:py-16">
+          <div className="bp-container">
+            <div className="mx-auto mb-8 max-w-2xl text-center md:mb-10">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#7B8791]">
+                Gợi ý dành cho bạn
+              </p>
+
+              <h2 className="font-heading mt-4 text-4xl font-medium tracking-[-0.02em] text-[#1F1F1F] md:text-5xl">
+                Bạn cũng có thể thích
+              </h2>
+
+              <p className="mt-4 text-sm leading-6 text-[#66707A] md:text-base">
+                Những thiết kế được chọn để đồng hành cùng phong cách bạn đang khám phá tại Blue Peach.
+              </p>
+            </div>
+
+            {relatedProducts.length > 0 ? (
+              <div className="grid grid-cols-2 border-b border-r border-[#DED8CC] lg:grid-cols-4">
+                {relatedProducts.map((item) => {
+                  const hasDiscount =
+                    !!item.phan_tram_giam && item.phan_tram_giam > 0;
+
+                  return (
+                    <ProductCard
+                      key={item.ma_san_pham}
+                      product={item}
+                      badgeText={
+                        hasDiscount
+                          ? `-${item.phan_tram_giam}%`
+                          : item.is_bestseller
+                            ? "Bán chạy"
+                            : "Blue Peach"
+                      }
+                      description="Trang sức bạc Blue Peach tinh giản, nhẹ nhàng và thanh lịch cho mỗi ngày."
+                      showAddToCart
+                      showStock
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-[28px] border border-[#DED8CC] bg-white/80 px-6 py-14 text-center shadow-[0_12px_28px_rgba(0,0,0,0.03)]">
+                <h3 className="font-heading text-4xl font-medium text-[#1F1F1F]">
+                  Đang cập nhật thêm gợi ý
+                </h3>
+
+                <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-[#66707A]">
+                  Bạn có thể quay lại trang sản phẩm để khám phá thêm những thiết kế khác của Blue Peach.
+                </p>
+
+                <Link href="/products" className="bp-btn bp-btn--solid mt-6">
+                  Xem tất cả sản phẩm
+                </Link>
+              </div>
+            )}
           </div>
         </section>
       </main>
@@ -570,5 +729,21 @@ export default function ProductDetailClient({
         />
       )}
     </>
+  );
+}
+
+function HeartIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.7"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M12.1 21.35 10.55 19.94C5.4 15.27 2 12.2 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09A6 6 0 0 1 16.5 3C19.58 3 22 5.42 22 8.5c0 3.7-3.4 6.77-8.55 11.44l-1.35 1.23Z" />
+    </svg>
   );
 }

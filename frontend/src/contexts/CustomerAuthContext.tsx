@@ -12,6 +12,7 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { clearCart } from "@/lib/cart";
+import { AUTH_INVALID_EVENT } from "@/lib/api";
 
 export type CustomerProfile = {
   user_id: string;
@@ -163,6 +164,24 @@ export function CustomerAuthProvider({
       subscription.unsubscribe();
     };
   }, [loadProfile]);
+
+  useEffect(() => {
+    function handleAuthInvalid() {
+      void supabase.auth.signOut();
+
+      if (isMountedRef.current) {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+      }
+    }
+
+    window.addEventListener(AUTH_INVALID_EVENT, handleAuthInvalid);
+
+    return () => {
+      window.removeEventListener(AUTH_INVALID_EVENT, handleAuthInvalid);
+    };
+  }, []);
 
   const refreshProfile = useCallback(async () => {
     const currentUser = session?.user ?? null;

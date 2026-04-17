@@ -92,14 +92,16 @@ export default function Sidebar() {
       ],
     },
     {
-      group: "Nội dung & chăm sóc",
-      items: [
-        { href: "/admin/banners", label: "Banner" },
-        { href: "/admin/news", label: "Tin tức" },
-        { href: "/admin/reviews", label: "Đánh giá" },
-        { href: "/admin/coupons", label: "Mã giảm giá" },
-      ],
-    },
+  group: "Nội dung & chăm sóc",
+  items: [
+    { href: "/admin/banners", label: "Banner" },
+    { href: "/admin/news", label: "Tin tức" },
+    { href: "/admin/reviews", label: "Đánh giá" },
+    { href: "/admin/coupons", label: "Mã giảm giá" },
+    { href: "/admin/notifications", label: "Thông báo" },
+    { href: "/admin/chat", label: "Chat hỗ trợ" },
+  ],
+},
     {
       group: "Kho & báo cáo",
       items: [
@@ -109,12 +111,12 @@ export default function Sidebar() {
     },
   ];
 
-const adminOnlySections: NavSection[] = [
-  {
-    group: "Quản trị hệ thống",
-    items: [{ href: "/admin/users", label: "Người dùng" }],
-  },
-];
+  const adminOnlySections: NavSection[] = [
+    {
+      group: "Quản trị hệ thống",
+      items: [{ href: "/admin/users", label: "Người dùng" }],
+    },
+  ];
 
   const navigation =
     role === "admin"

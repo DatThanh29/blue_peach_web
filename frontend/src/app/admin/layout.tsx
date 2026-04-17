@@ -1,9 +1,29 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import AdminGuard from "./ui/AdminGuard";
 import Sidebar from "./ui/Sidebar";
 import Topbar from "./ui/Topbar";
 
+const ADMIN_AUTH_PAGES = ["/admin/login", "/admin/register"];
+
 export default function AdminLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+
+  const isAdminAuthPage = ADMIN_AUTH_PAGES.some(
+    (route) => pathname === route || pathname?.startsWith(`${route}/`)
+  );
+
+  if (isAdminAuthPage) {
+    return (
+      <div className="min-h-screen bg-[#f7f7f5] text-zinc-900">
+        <AdminGuard />
+        <main className="min-h-screen">{children}</main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f7f7f5] text-zinc-900">
       <AdminGuard />

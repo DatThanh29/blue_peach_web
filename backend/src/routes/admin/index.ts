@@ -14,6 +14,8 @@ import adminCouponsRouter from "./coupons.admin";
 import adminInventoryRouter from "./inventory.admin";
 import adminUsersRouter from "./users.admin";
 import adminReviewsRouter from "./reviews.admin";
+import adminNotificationsRouter from "./notifications.admin";
+import adminChatRouter from "./chat.admin";
 import uploadRouter from "./upload";
 import productImagesRouter from "./product-images";
 
@@ -34,6 +36,8 @@ router.use("/banners", requireAdminOrStaff, adminBannersRouter);
 router.use("/coupons", requireAdminOrStaff, adminCouponsRouter);
 router.use("/inventory", requireAdminOrStaff, adminInventoryRouter);
 router.use("/reviews", requireAdminOrStaff, adminReviewsRouter);
+router.use("/notifications", requireAdminOrStaff, adminNotificationsRouter);
+router.use("/chat", requireAdminOrStaff, adminChatRouter);
 router.use("/upload", requireAdminOrStaff, uploadRouter);
 router.use("/product-images", requireAdminOrStaff, productImagesRouter);
 

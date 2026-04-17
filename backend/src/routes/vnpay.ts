@@ -25,6 +25,7 @@ type ShippingAddressSnapshot = {
 };
 
 type CreateVnpayBody = {
+  customer_user_id?: string | null;
   customer_name: string;
   phone: string;
   address: string;
@@ -244,7 +245,7 @@ if (!hasLegacyCustomerInfo && !hasShippingSnapshot) {
     const { data: created, error: orderErr } = await supabase
       .from("orders")
       .insert({
-        ma_nguoi_dung: null,
+        ma_nguoi_dung: body.customer_user_id ?? null,
         dia_chi_giao_hang_snapshot: dia_chi_snapshot,
         ghi_chu: body.note ?? null,
         tong_tien_hang,
