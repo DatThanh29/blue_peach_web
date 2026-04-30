@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { sendMessageToAI, type AIProductSuggestion } from "@/lib/ai.api";
+import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
 import { slugify } from "@/utils/slug";
 
 type ChatMessage = {
@@ -42,6 +43,7 @@ const AIAssistantPanel = forwardRef<AIAssistantPanelHandle, { compact?: boolean 
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [promptsOpen, setPromptsOpen] = useState(!compact);
+    const { isAuthenticated, isLoading } = useCustomerAuth();
 
     const nextIdRef = useRef(1);
     const messagesRef = useRef<HTMLDivElement | null>(null);
@@ -87,6 +89,28 @@ const AIAssistantPanel = forwardRef<AIAssistantPanelHandle, { compact?: boolean 
       setInput("");
       setError(null);
       setIsSending(true);
+
+      if (isLoading) {
+        setIsSending(false);
+        return;
+      }
+
+      if (!isAuthenticated) {
+        setIsSending(false);
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-${nextIdRef.current++}`,
+            role: "assistant",
+            content:
+              "Bạn cần đăng nhập để sử dụng AI tư vấn và lưu lại lịch sử trò chuyện. Vui lòng đăng nhập rồi quay lại nhé.",
+            products: [],
+          },
+        ]);
+
+        return;
+      }
 
       if (compact && promptsOpen) {
         setPromptsOpen(false);
