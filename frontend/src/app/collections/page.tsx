@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import HeroSlider from "@/components/home/HeroSlider";
 import CollectionCard from "@/components/collections/CollectionCard";
+import PageBreadcrumb from "@/components/layout/PageBreadcrumb";
 
 type CollectionItem = {
   ma_bo_suu_tap: string;
@@ -34,6 +35,13 @@ export default async function CollectionsPage() {
 
   return (
     <main className="min-h-screen bg-[#f7f6f2] text-[#1F1F1F]">
+      <PageBreadcrumb
+        items={[
+          { label: "Trang chủ", href: "/" },
+          { label: "Bộ sưu tập", active: true },
+        ]}
+      />
+
       <section className="bp-surface bp-surface-plain">
         <HeroSlider />
       </section>

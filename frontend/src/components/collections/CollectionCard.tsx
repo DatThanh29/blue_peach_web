@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 type CollectionCardData = {
   slug: string;
@@ -14,15 +17,19 @@ export default function CollectionCard({
 }: {
   collection: CollectionCardData;
 }) {
+  const [imageError, setImageError] = useState(false);
+  const showImage = !!collection.anh_the && !imageError;
+
   return (
     <article className="group overflow-hidden border border-[#DED8CC] bg-[#F8F8F5] transition duration-300 hover:-translate-y-[2px] hover:shadow-[0_18px_40px_rgba(0,0,0,0.06)]">
       <Link href={`/collections/${collection.slug}`} className="block">
         <div className="overflow-hidden border-b border-[#DED8CC] bg-[#F3EEE6]">
-          {collection.anh_the ? (
+          {showImage ? (
             <img
-              src={collection.anh_the}
+              src={collection.anh_the!}
               alt={collection.ten_bo_suu_tap}
               className="aspect-[4/5] w-full object-cover transition duration-700 group-hover:scale-[1.04]"
+              onError={() => setImageError(true)}
             />
           ) : (
             <div className="flex aspect-[4/5] items-center justify-center text-sm text-[#8C8478]">

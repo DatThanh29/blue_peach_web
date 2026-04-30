@@ -7,6 +7,8 @@ import AddToCartButton from "@/components/AddToCartButton";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useState } from "react";
+import { slugify } from "@/utils/slug";
+import { formatShortCode } from "@/utils/formatCode";
 
 export type ProductCardData = {
   ma_san_pham: string;
@@ -44,7 +46,7 @@ export default function ProductCard({
 }: {
   product: ProductCardData;
   badgeText: string;
-  description: string;
+  description?: string;
   showAddToCart?: boolean;
   showStock?: boolean;
   compactGrid?: boolean;
@@ -62,6 +64,7 @@ export default function ProductCard({
   const active = isWishlisted(product.ma_san_pham);
   const toggling = isToggling(product.ma_san_pham);
   const hasDiscount = !!product.phan_tram_giam && product.phan_tram_giam > 0;
+  const shortId = formatShortCode(product.ma_san_pham, "", 8);
 
   async function handleWishlistClick(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
@@ -97,12 +100,12 @@ export default function ProductCard({
     <>
       <article
         className={[
-          "group border-l border-t border-[#E3DBCF] bg-[#FBFAF7] transition duration-300",
+          "group flex h-full flex-col border-l border-t border-[#E3DBCF] bg-[#FBFAF7] transition duration-300",
           "hover:bg-white",
           compactGrid ? "" : "",
         ].join(" ")}
       >
-        <Link href={`/products/${product.ma_san_pham}`} className="block">
+        <Link href={`/products/${slugify(product.ten_san_pham)}-${product.ma_san_pham}`} className="block flex-1">
           <div className="relative overflow-hidden">
             <button
               type="button"
@@ -135,20 +138,22 @@ export default function ProductCard({
             </div>
           </div>
 
-          <div className="px-5 pb-6 pt-4">
+          <div className="flex min-h-[178px] flex-col px-5 pb-5 pt-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8C8478]">
               {badgeText}
             </p>
 
-            <h3 className="mt-3 line-clamp-2 text-[15px] font-medium leading-6 text-[#111111] md:text-[16px]">
+            <h3 className="mt-3 line-clamp-2 min-h-[48px] text-[15px] font-medium leading-6 text-[#111111] md:text-[16px]">
               {product.ten_san_pham}
             </h3>
 
-            <p className="mt-2 line-clamp-2 text-[13px] leading-6 text-[#6F6A63]">
-              {description}
-            </p>
+            {description ? (
+              <p className="mt-2 line-clamp-2 text-[13px] leading-6 text-[#6F6A63]">
+                {description}
+              </p>
+            ) : null}
 
-            <div className="mt-5 flex items-end justify-between gap-3">
+            <div className="mt-auto flex items-end justify-between gap-3 pt-5">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-[16px] font-medium tracking-[-0.01em] text-[#111111]">
                   {Number(product.gia_ban).toLocaleString("vi-VN")}đ
@@ -162,7 +167,7 @@ export default function ProductCard({
               </div>
 
               {showStock && typeof product.so_luong_ton === "number" ? (
-                <span className="text-[11px] text-[#8C8478]">
+                <span className="shrink-0 text-[11px] text-[#8C8478]">
                   Tồn kho: {product.so_luong_ton}
                 </span>
               ) : null}
@@ -171,7 +176,7 @@ export default function ProductCard({
         </Link>
 
         {showAddToCart ? (
-          <div className="px-5 pb-6">
+          <div className="mt-auto px-5 pb-6">
             <AddToCartButton
               ma_san_pham={product.ma_san_pham}
               ten_san_pham={product.ten_san_pham}

@@ -103,10 +103,9 @@ export default function Sidebar() {
   ],
 },
     {
-      group: "Kho & báo cáo",
+      group: "Quản lý kho ",
       items: [
         { href: "/admin/inventory", label: "Tồn kho" },
-        { href: "/admin/reports", label: "Báo cáo" },
       ],
     },
   ];
@@ -157,15 +156,6 @@ export default function Sidebar() {
               </nav>
             </div>
           ))}
-        </div>
-
-        <div className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
-          <div className="text-sm font-semibold text-zinc-900">Workspace</div>
-          <p className="mt-2 text-xs leading-5 text-zinc-500">
-            {role === "admin"
-              ? "Admin có toàn quyền với vận hành, nội dung, kho, báo cáo và người dùng."
-              : "Staff hiện được phép quản lý đơn hàng, sản phẩm, danh mục, banner, tin tức, đánh giá và kho."}
-          </p>
         </div>
       </div>
     </aside>

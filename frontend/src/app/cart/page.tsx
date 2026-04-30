@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCart } from "@/hooks/useCart";
+import PageBreadcrumb from "@/components/layout/PageBreadcrumb";
 
 const VAT_RATE = 0.1; // 10% VAT
 const SHIPPING_COST = 30000; // 30k shipping
@@ -19,6 +20,12 @@ export default function CartPage() {
 
   return (
     <main className="min-h-screen bg-white">
+      <PageBreadcrumb
+        items={[
+          { label: "Trang chủ", href: "/" },
+          { label: "Giỏ hàng", active: true },
+        ]}
+      />
       {/* Header */}
       <div className="border-b border-zinc-200">
         <div className="bp-container py-6">

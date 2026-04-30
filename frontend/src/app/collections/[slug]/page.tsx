@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import CollectionsHero from "@/components/collections/CollectionsHero";
 import CollectionProductsGrid from "@/components/collections/CollectionProductsGrid";
+import PageBreadcrumb from "@/components/layout/PageBreadcrumb";
 
 type CollectionItem = {
   ma_bo_suu_tap: string;
@@ -63,44 +63,40 @@ export default async function CollectionDetailPage({
 
     return (
       <main className="min-h-screen bg-[#f7f6f2] text-[#1F1F1F]">
-        <CollectionsHero
-          eyebrow="Blue Peach Collection"
-          title={collection.ten_bo_suu_tap}
-          description={collection.mo_ta_chi_tiet || collection.mo_ta_ngan || ""}
-          image={collection.anh_bia || collection.anh_the || null}
-          primaryCta={{ href: "/products", label: "Xem tất cả sản phẩm" }}
-          secondaryCta={{ href: "/collections", label: "Xem các bộ sưu tập khác" }}
+        <PageBreadcrumb
+          items={[
+            { label: "Trang chủ", href: "/" },
+            { label: "Bộ sưu tập", href: "/collections" },
+            { label: collection.ten_bo_suu_tap, active: true },
+          ]}
         />
 
-        <section className="py-8 md:py-10">
+        <section className="bp-surface bp-surface-plain py-6 md:py-8">
           <div className="bp-container">
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-[#66707A]">
-              <Link href="/collections" className="bp-link">
-                ← Quay lại bộ sưu tập
-              </Link>
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="max-w-3xl">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#7B8791]">
+                  Blue Peach Collection
+                </p>
 
-              <span>•</span>
+                <h1 className="font-heading mt-3 text-3xl font-medium tracking-[-0.02em] text-[#1F1F1F] md:text-4xl">
+                  {collection.ten_bo_suu_tap}
+                </h1>
 
-              <span>{products.length} sản phẩm trong bộ sưu tập này</span>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#66707A]">
+                  {collection.mo_ta_ngan ||
+                    "Khám phá những thiết kế bạc được tuyển chọn theo tinh thần tối giản, nữ tính và tinh tế."}
+                </p>
+              </div>
 
-              {collection.noi_bat ? (
-                <>
-                  <span>•</span>
-                  <span className="font-medium text-[#1F1F1F]">Bộ sưu tập nổi bật</span>
-                </>
-              ) : null}
+              <div className="text-sm text-[#8C8478]">
+                {products.length} sản phẩm
+              </div>
             </div>
           </div>
         </section>
 
-        <CollectionProductsGrid
-          title={collection.ten_bo_suu_tap}
-          description={
-            collection.mo_ta_ngan ||
-            "Tuyển chọn những thiết kế bạc mang tinh thần tinh tế, nữ tính và hiện đại của Blue Peach."
-          }
-          products={products}
-        />
+       <CollectionProductsGrid products={products} compactHeader />
 
         <section className="border-t border-[#DED8CC] py-12 md:py-16">
           <div className="bp-container">

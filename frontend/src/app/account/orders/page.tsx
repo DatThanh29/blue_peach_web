@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Toast from "@/components/Toast";
+import PageBreadcrumb from "@/components/layout/PageBreadcrumb";
 import { supabase } from "@/lib/supabase";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
+import { formatShortCode } from "@/utils/formatCode";
 
 type NavItem = {
   label: string;
@@ -228,25 +230,21 @@ export default function AccountOrdersPage() {
       label: "Thông báo",
       href: "/account/notifications",
       icon: <BellIcon />,
-      badge: "Soon",
     },
     {
       label: "Yêu thích",
       href: "/account/wishlist",
       icon: <HeartIcon />,
-      badge: "Soon",
     },
     {
       label: "AI tư vấn",
       href: "/account/ai-assistant",
       icon: <SparklesIcon />,
-      badge: "Soon",
     },
     {
       label: "Chat với Admin",
       href: "/account/chat-admin",
       icon: <ChatIcon />,
-      badge: "Soon",
     },
     {
       label: "Bảo mật tài khoản",
@@ -332,7 +330,14 @@ export default function AccountOrdersPage() {
 
   if (isLoading || !isAuthenticated || !isEmailVerified) {
     return (
-      <main className="bp-surface bp-surface-plain min-h-screen pt-24 md:pt-28">
+      <main className="bp-surface bp-surface-plain min-h-screen">
+        <PageBreadcrumb
+          items={[
+            { label: "Trang chủ", href: "/" },
+            { label: "Tài khoản", href: "/account" },
+            { label: "Đơn hàng", active: true },
+          ]}
+        />
         <section className="bp-container py-16">
           <div className="mx-auto max-w-[520px] text-center">
             <p className="text-sm text-black/60">Đang tải đơn hàng...</p>
@@ -343,7 +348,14 @@ export default function AccountOrdersPage() {
   }
 
   return (
-    <main className="bp-surface bp-surface-plain min-h-screen pt-24 md:pt-28">
+    <main className="bp-surface bp-surface-plain min-h-screen">
+      <PageBreadcrumb
+        items={[
+          { label: "Trang chủ", href: "/" },
+          { label: "Tài khoản", href: "/account" },
+          { label: "Đơn hàng", active: true },
+        ]}
+      />
       <section className="bp-container py-8 md:py-12">
         <div className="rounded-[34px] border border-black/8 bg-white/80 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.06)] backdrop-blur-sm md:p-6">
           <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
@@ -490,7 +502,7 @@ export default function AccountOrdersPage() {
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-sm font-semibold text-black">
-                                Đơn hàng #{order.ma_don_hang.slice(0, 8).toUpperCase()}
+                                Đơn hàng {formatShortCode(order.ma_don_hang, "#", 8)}
                               </p>
 
                               <span

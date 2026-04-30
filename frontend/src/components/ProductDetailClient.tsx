@@ -1,5 +1,7 @@
 "use client";
 
+import { formatShortCode } from "@/utils/formatCode";
+import { slugify } from "@/utils/slug";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { addToCart } from "@/lib/cart";
@@ -8,6 +10,7 @@ import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
 import { useWishlist } from "@/hooks/useWishlist";
 import { usePathname, useRouter } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
+import PageBreadcrumb from "@/components/layout/PageBreadcrumb";
 
 type ProductDetail = {
   ma_san_pham: string;
@@ -256,7 +259,9 @@ export default function ProductDetailClient({
   async function handleToggleWishlist() {
     if (!isAuthenticated) {
       router.push(
-        `/login?redirect=${encodeURIComponent(pathname || `/products/${product.ma_san_pham}`)}`
+        `/login?redirect=${encodeURIComponent(
+          pathname || `/products/${slugify(product.ten_san_pham)}-${product.ma_san_pham}`
+        )}`
       );
       return;
     }
@@ -287,32 +292,30 @@ export default function ProductDetailClient({
   return (
     <>
       <main className="bg-[#f7f6f2] text-[#1F1F1F]">
-        <section className="bp-surface bp-surface-warm border-b border-[#DDD3C6] pt-2 md:pt-3">
-          <div className="bp-container py-6 md:py-8">
-            <Link
-              href="/products"
-              className="bp-link inline-block text-sm text-[#66707A]"
-            >
-              ← Quay lại sản phẩm
-            </Link>
+        <PageBreadcrumb
+          items={[
+            { label: "Trang chủ", href: "/" },
+            { label: "Trang sức", href: "/products" },
+            { label: product.ten_san_pham, active: true },
+          ]}
+        />
 
-            <div className="mt-6 max-w-4xl">
-              <div className="flex flex-wrap items-center gap-2">
-                <InfoPill tone="soft">Blue Peach</InfoPill>
-                <InfoPill>SKU: {product.sku}</InfoPill>
-                {product.ngay_tao ? (
-                  <InfoPill>
-                    Ngày tạo: {new Date(product.ngay_tao).toLocaleDateString("vi-VN")}
-                  </InfoPill>
-                ) : null}
-                <InfoPill tone="accent">
-                  {reviewSummary.average_rating.toFixed(1)}/5 · {reviewSummary.total_reviews} đánh giá
+        <section className="bp-surface bp-surface-plain py-6 md:py-8">
+          <div className="bp-container">
+            <div className="flex flex-wrap items-center gap-2">
+              <InfoPill tone="soft">Blue Peach</InfoPill>
+              <InfoPill>SKU: {product.sku}</InfoPill>
+
+              {product.ngay_tao ? (
+                <InfoPill>
+                  Ngày tạo: {new Date(product.ngay_tao).toLocaleDateString("vi-VN")}
                 </InfoPill>
-              </div>
+              ) : null}
 
-              <p className="mt-4 text-sm text-[#8C8478]">
-                Khám phá chi tiết thiết kế bạc được tuyển chọn từ Blue Peach.
-              </p>
+              <InfoPill tone="accent">
+                {reviewSummary.average_rating.toFixed(1)}/5 ·{" "}
+                {reviewSummary.total_reviews} đánh giá
+              </InfoPill>
             </div>
           </div>
         </section>
@@ -402,7 +405,7 @@ export default function ProductDetailClient({
                       </span>
                     </div>
                     <p className="mt-3 text-sm text-[#8C8478]">
-                      Mã sản phẩm: {product.sku}
+                      Mã sản phẩm: {product.sku || formatShortCode(product.ma_san_pham, "SP-", 8)}
                     </p>
                   </div>
 

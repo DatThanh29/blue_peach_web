@@ -61,12 +61,21 @@ type RelatedProductsResponse = {
   limit: number;
 };
 
+function extractProductId(value: string): string {
+  const uuidMatch = value.match(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  );
+
+  return uuidMatch ? uuidMatch[0] : value;
+}
+
 export default async function ProductDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const raw = (await params).id;
+  const id = extractProductId(raw);
 
   try {
     const [product, reviewsData, relatedProductsRes] = await Promise.all([

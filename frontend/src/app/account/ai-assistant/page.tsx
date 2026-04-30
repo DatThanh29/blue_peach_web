@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { slugify } from "@/utils/slug";
 import AccountShell from "@/components/account/AccountShell";
 import { sendMessageToAI, type AIProductSuggestion } from "@/lib/ai.api";
 
@@ -143,7 +144,7 @@ export default function AccountAIAssistantPage() {
                   {message.products.map((product) => (
                     <Link
                       key={product.ma_san_pham}
-                      href={`/products/${product.ma_san_pham}`}
+                      href={`/products/${slugify(product.ten_san_pham)}-${product.ma_san_pham}`}
                       className="group rounded-[24px] border border-black/8 bg-white p-3 transition hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(0,0,0,0.06)]"
                     >
                       <div className="aspect-square overflow-hidden rounded-[18px] bg-[#f5f1ea]">

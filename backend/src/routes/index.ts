@@ -12,6 +12,7 @@ import wishlistRouter from "./wishlist";
 import notificationsRouter from "./notifications";
 import supportRouter from "./support";
 import collectionsRouter from "./collections";
+import newsRouter from "./news";
 
 const router = Router();
 
@@ -30,6 +31,7 @@ router.use("/wishlist", wishlistRouter);
 router.use("/notifications", notificationsRouter);
 router.use("/support", supportRouter);
 router.use("/collections", collectionsRouter);
+router.use("/news", newsRouter);
 router.use("/admin", adminRouter);
 router.use("/payments/vnpay", vnpayRouter);
 

@@ -12,10 +12,14 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [headerHovered, setHeaderHovered] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
 
   const {
     user,
@@ -66,6 +70,12 @@ export default function Header() {
     };
   }, []);
 
+  useEffect(() => {
+    if (searchOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, [searchOpen]);
+
   const handleEnter = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     setHeaderHovered(true);
@@ -79,6 +89,22 @@ export default function Header() {
   };
 
   const showSolidHeader = !isHome || scrolled;
+
+  const handleSearch = () => {
+    if (!search.trim()) {
+      setSearchOpen((prev) => !prev);
+      return;
+    }
+
+    router.push(`/products?q=${encodeURIComponent(search.trim())}`);
+    setSearchOpen(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
 
   async function handleLogout() {
     try {
@@ -128,7 +154,7 @@ export default function Header() {
           >
             <div className="bp-container flex h-10 items-center justify-between text-[12px] tracking-[0.08em]">
               <Link
-                href="/stores"
+                href="/contact"
                 className={[
                   "inline-flex items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold transition",
                   overlayDark
@@ -209,16 +235,23 @@ export default function Header() {
                     dark={overlayDark}
                   />
                   <NavItem
-                    href="/products?category=gifts"
-                    label="Quà tặng"
+                    href="/news"
+                    label="Tin tức"
                     dark={overlayDark}
                   />
                 </nav>
 
                 <div className="flex items-center justify-self-end gap-2">
-                  <HeaderIconButton label="Tìm kiếm" dark={overlayDark}>
-                    <SearchIcon />
-                  </HeaderIconButton>
+                  <CompactHeaderSearch
+                    dark={overlayDark}
+                    search={search}
+                    setSearch={setSearch}
+                    open={searchOpen}
+                    setOpen={setSearchOpen}
+                    inputRef={searchInputRef}
+                    onSearch={handleSearch}
+                    onKeyDown={handleKeyDown}
+                  />
 
                   <CartIcon
                     className={[
@@ -287,8 +320,8 @@ export default function Header() {
                   dark={false}
                 />
                 <NavItem
-                  href="/products?category=gifts"
-                  label="Quà tặng"
+                  href="/news"
+                  label="Tin tức"
                   dark={false}
                 />
               </nav>
@@ -305,9 +338,16 @@ export default function Header() {
                   unreadCount={unreadCount}
                 />
 
-                <HeaderIconButton label="Tìm kiếm" dark={false}>
-                  <SearchIcon />
-                </HeaderIconButton>
+                <CompactHeaderSearch
+                  dark={false}
+                  search={search}
+                  setSearch={setSearch}
+                  open={searchOpen}
+                  setOpen={setSearchOpen}
+                  inputRef={searchInputRef}
+                  onSearch={handleSearch}
+                  onKeyDown={handleKeyDown}
+                />
 
                 <CartIcon
                   className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-800 transition hover:bg-zinc-100"
@@ -378,13 +418,13 @@ function HeaderCustomerActions({
   if (!isAuthenticated) {
     return (
       <div className="flex items-center gap-2">
-        <TopUtilityLink href="/login" label="Đăng nhập" dark={dark} />
-        <TopUtilityLink href="/wishlist" label="Yêu thích" dark={dark} />
+        <TopUtilityLink href="/login" label="Đăng nhập" dark={dark} compact />
+        <TopUtilityLink href="/account/wishlist" label="Yêu thích" dark={dark} compact />
       </div>
     );
   }
 
-    if (!isEmailVerified) {
+  if (!isEmailVerified) {
     return (
       <div className="flex items-center gap-2">
         <TopUtilityLink href="/verify-email" label="Xác minh email" dark={dark} />
@@ -408,6 +448,8 @@ function HeaderCustomerActions({
 
   return (
     <div className="flex items-center gap-2">
+      <HeaderWishlistLink dark={dark} />
+
       <HeaderAccountLink dark={dark} />
 
       <HeaderNotificationLink dark={dark} unreadCount={unreadCount} />
@@ -435,16 +477,19 @@ function TopUtilityLink({
   href,
   label,
   dark,
+  compact = false,
 }: {
   href: string;
   label: string;
   dark: boolean;
+  compact?: boolean;
 }) {
   return (
     <Link
       href={href}
       className={[
         "rounded-full px-3 py-2 text-[13px] font-semibold transition",
+        compact ? "hidden sm:inline-flex" : "",
         dark
           ? "text-white/90 hover:bg-white/10 hover:text-white"
           : "text-black hover:bg-white/85 hover:text-black",
@@ -501,6 +546,139 @@ function HeaderAccountLink({ dark }: { dark: boolean }) {
     >
       <UserOutlineIcon />
     </Link>
+  );
+}
+
+function HeaderWishlistLink({ dark }: { dark: boolean }) {
+  return (
+    <Link
+      href="/account/wishlist"
+      aria-label="Yêu thích"
+      title="Yêu thích"
+      className={[
+        "relative inline-flex h-10 w-10 items-center justify-center rounded-full transition",
+        dark
+          ? "text-white/90 hover:bg-white/10 hover:text-white"
+          : "text-black hover:bg-white/85 hover:text-black",
+      ].join(" ")}
+    >
+      <HeartOutlineIcon />
+    </Link>
+  );
+}
+
+function HeaderSearchBox({
+  dark,
+  searchOpen,
+  search,
+  setSearch,
+  onSearch,
+  onKeyDown,
+  inputRef,
+}: {
+  dark: boolean;
+  searchOpen: boolean;
+  search: string;
+  setSearch: React.Dispatch<React.SetStateAction<string>>;
+  onSearch: () => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        ref={inputRef}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder="Tìm kiếm sản phẩm..."
+        className={[
+          "h-10 rounded-full border px-3 text-[13px] outline-none transition-all duration-200",
+          searchOpen
+            ? "w-32 opacity-100 md:w-40 lg:w-48"
+            : "w-0 border-transparent px-0 opacity-0 pointer-events-none",
+          dark
+            ? "border-white/35 bg-white/10 text-white placeholder:text-white/70 focus:border-white/60"
+            : "border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400",
+        ].join(" ")}
+      />
+
+      <button
+        type="button"
+        onClick={onSearch}
+        aria-label="Tìm kiếm"
+        className={[
+          "inline-flex h-10 w-10 items-center justify-center rounded-full transition",
+          dark
+            ? "text-white hover:bg-white/10 hover:text-white"
+            : "text-zinc-800 hover:bg-zinc-100 hover:text-black",
+        ].join(" ")}
+      >
+        <SearchIcon />
+      </button>
+    </div>
+  );
+}
+
+function CompactHeaderSearch({
+  dark,
+  search,
+  setSearch,
+  open,
+  setOpen,
+  inputRef,
+  onSearch,
+  onKeyDown,
+}: {
+  dark: boolean;
+  search: string;
+  setSearch: (value: string) => void;
+  open: boolean;
+  setOpen: (value: boolean) => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onSearch: () => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div className="relative flex items-center">
+      <div
+        className={[
+          "flex items-center overflow-hidden rounded-full transition-all duration-300",
+          open ? "w-[210px] opacity-100" : "w-0 opacity-0",
+          dark ? "bg-white/92" : "bg-[#F7F4EE]",
+        ].join(" ")}
+      >
+        <input
+          ref={inputRef}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="Tìm sản phẩm..."
+          className="h-10 w-full bg-transparent px-4 text-sm text-[#1F1F1F] outline-none placeholder:text-[#9A938A]"
+        />
+      </div>
+
+      <button
+        type="button"
+        aria-label="Tìm kiếm"
+        onClick={() => {
+          if (!open) {
+            setOpen(true);
+            return;
+          }
+
+          onSearch();
+        }}
+        className={[
+          "ml-1 inline-flex h-10 w-10 items-center justify-center rounded-full transition",
+          dark
+            ? "text-white hover:bg-white/10"
+            : "text-zinc-800 hover:bg-zinc-100",
+        ].join(" ")}
+      >
+        <SearchIcon />
+      </button>
+    </div>
   );
 }
 
@@ -729,6 +907,24 @@ function UserOutlineIcon() {
     >
       <path d="M20 21a8 8 0 0 0-16 0" />
       <circle cx="12" cy="8" r="4" />
+    </svg>
+  );
+}
+
+function HeartOutlineIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="opacity-95"
+    >
+      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z" />
     </svg>
   );
 }

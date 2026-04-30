@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
-import { requireAdminOnly } from "../middlewares/auth";
+import { requireAuth, requireAdminOnly } from "../middlewares/auth";
 import { increaseCouponUsage, validateCouponCode } from "../lib/coupons";
 import { createStockMovement } from "../lib/stock";
 
@@ -48,7 +48,8 @@ function getPaymentStatus(paymentMethod: PaymentMethod) {
   return PAYMENT_STATUS_BY_METHOD[paymentMethod];
 }
 
-router.get("/", async (req, res) => {
+router.get("/", requireAuth, async (req, res) => {
+  const userId = req.authUser!.userId;
   const limit = Number(req.query.limit ?? 20);
   const offset = Number(req.query.offset ?? 0);
 
@@ -58,6 +59,7 @@ router.get("/", async (req, res) => {
       "ma_don_hang, ngay_dat_hang, tong_thanh_toan, trang_thai_don, trang_thai_thanh_toan, hinh_thuc_thanh_toan, dia_chi_giao_hang_snapshot",
       { count: "exact" }
     )
+    .eq("ma_nguoi_dung", userId)
     .order("ngay_dat_hang", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -71,7 +73,8 @@ router.get("/", async (req, res) => {
   });
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireAuth, async (req, res) => {
+  const userId = req.authUser!.userId;
   const body = req.body as CreateOrderBody;
   const paymentMethod: PaymentMethod =
     body.payment_method && ["cod", "vnpay"].includes(body.payment_method)
@@ -163,6 +166,27 @@ router.post("/", async (req, res) => {
     giam_gia = couponResult.discountAmount;
     couponId = couponResult.coupon.ma_giam_gia;
     couponCode = couponResult.coupon.code;
+
+    const normalizedCode = String(couponCode).trim().toUpperCase();
+
+    if (normalizedCode === "NEWPEACH15") {
+      const { data: used, error: usedError } = await supabase
+        .from("coupon_usages")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("coupon_code", normalizedCode)
+        .maybeSingle();
+
+      if (usedError) {
+        return res.status(500).json({ error: usedError.message });
+      }
+
+      if (used) {
+        return res.status(400).json({
+          error: "Bạn đã sử dụng mã NEWPEACH15 cho một đơn hàng trước đó.",
+        });
+      }
+    }
   }
 
   const tong_thanh_toan = tong_tien_hang - giam_gia + phi_van_chuyen;
@@ -193,7 +217,7 @@ router.post("/", async (req, res) => {
   const { data: created, error: orderErr } = await supabase
     .from("orders")
     .insert({
-      ma_nguoi_dung: body.customer_user_id ?? null,
+      ma_nguoi_dung: userId,
       dia_chi_giao_hang_snapshot: dia_chi_snapshot,
       ghi_chu: body.note ?? null,
       tong_tien_hang,
@@ -212,6 +236,30 @@ router.post("/", async (req, res) => {
   if (orderErr) return res.status(500).json({ error: orderErr.message });
 
   const orderId = created.ma_don_hang;
+
+  if (couponCode) {
+    const normalizedCode = String(couponCode).trim().toUpperCase();
+
+    if (normalizedCode === "NEWPEACH15") {
+      const { error: usageError } = await supabase
+        .from("coupon_usages")
+        .insert({
+          user_id: userId,
+          coupon_code: normalizedCode,
+          order_id: orderId,
+        });
+
+      if (usageError) {
+        if (usageError.code === "23505") {
+          return res.status(400).json({
+            error: "Bạn đã sử dụng mã NEWPEACH15 cho một đơn hàng trước đó.",
+          });
+        }
+
+        return res.status(500).json({ error: usageError.message });
+      }
+    }
+  }
 
   const { error: detailsErr } = await supabase.from("order_details").insert(
     lines.map((line) => ({
@@ -253,16 +301,14 @@ router.post("/", async (req, res) => {
 
   await increaseCouponUsage(couponId);
 
-  if (body.customer_user_id) {
-    await supabase.from("notifications").insert({
-      user_id: body.customer_user_id,
-      type: "order_created",
-      title: "Đơn hàng đã được tạo",
-      message: `Đơn hàng ${orderId} của bạn đã được tạo thành công.`,
-      link: "/account/orders",
-      is_read: false,
-    });
-  }
+  await supabase.from("notifications").insert({
+    user_id: userId,
+    type: "order_created",
+    title: "Đơn hàng đã được tạo",
+    message: `Đơn hàng ${orderId} của bạn đã được tạo thành công.`,
+    link: "/account/orders",
+    is_read: false,
+  });
     await supabase.from("admin_notifications").insert({
     type: "order_created",
     title: `Đơn hàng mới - ${orderId}`,
@@ -284,13 +330,15 @@ router.post("/", async (req, res) => {
   });
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireAuth, async (req, res) => {
+  const userId = req.authUser!.userId;
   const id = req.params.id;
 
   const { data: order, error: orderErr } = await supabase
     .from("orders")
     .select("*")
     .eq("ma_don_hang", id)
+    .eq("ma_nguoi_dung", userId)
     .maybeSingle();
 
   if (orderErr) return res.status(500).json({ error: orderErr.message });

@@ -21,7 +21,6 @@ const slides = [
     secondaryLabel: "Xem tất cả bộ sưu tập",
     accent: "bg-[#E8EEF3] text-[#5F7488]",
     panel: "bg-[#F8F8F5]",
-    imagePanel: "bg-[#EEF3F7]",
   },
   {
     id: 2,
@@ -36,7 +35,6 @@ const slides = [
     secondaryLabel: "Khám phá hàng mới",
     accent: "bg-[#F3E9EC] text-[#8A6671]",
     panel: "bg-[#FBF8F6]",
-    imagePanel: "bg-[#F4ECE7]",
   },
   {
     id: 3,
@@ -51,7 +49,6 @@ const slides = [
     secondaryLabel: "Xem sản phẩm bán chạy",
     accent: "bg-[#EFE9F6] text-[#786892]",
     panel: "bg-[#FAF8FC]",
-    imagePanel: "bg-[#F3EEF8]",
   },
 ];
 
@@ -90,13 +87,8 @@ export default function HeroSlider() {
           >
             {slides.map((slide) => (
               <SwiperSlide key={slide.id}>
-                <div className="grid items-stretch gap-6 md:grid-cols-[0.92fr_1.08fr] md:gap-8">
-                  <div
-                    className={[
-                      "order-2 flex h-full flex-col justify-center rounded-[28px] border border-[#DDD3C6] p-6 md:order-1 md:min-h-[500px] md:p-9",
-                      slide.panel,
-                    ].join(" ")}
-                  >
+                <div className="grid items-stretch gap-6 md:grid-cols-2 md:min-h-[450px]">
+                  <div className="order-2 h-full rounded-[28px] border border-[#DDD3C6] bg-white px-8 py-8 md:order-1 md:h-[450px] md:px-11 md:py-10">
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#7B8791] md:text-xs">
                         {slide.eyebrow}
@@ -112,15 +104,15 @@ export default function HeroSlider() {
                       </span>
                     </div>
 
-                    <h3 className="font-heading mt-6 max-w-[12ch] text-[46px] font-medium leading-[0.94] tracking-[-0.03em] text-[#1F1F1F] md:text-[64px]">
+                    <h3 className="font-heading mt-4 max-w-[13ch] text-5xl font-medium leading-[0.96] tracking-[-0.04em] text-[#1F1F1F] md:text-[58px]">
                       {slide.title}
                     </h3>
 
-                    <p className="mt-5 max-w-[56ch] text-sm leading-7 text-[#66707A] md:text-base">
+                    <p className="mt-6 max-w-[58ch] text-sm leading-7 text-[#66707A] md:text-base">
                       {slide.desc}
                     </p>
 
-                    <div className="mt-8 flex flex-wrap gap-3">
+                    <div className="mt-6 flex flex-wrap gap-3">
                       <Link className="bp-btn bp-btn--solid" href={slide.primaryHref}>
                         {slide.primaryLabel}
                       </Link>
@@ -131,16 +123,11 @@ export default function HeroSlider() {
                     </div>
                   </div>
 
-                  <div
-                    className={[
-                      "order-1 overflow-hidden rounded-[28px] border border-[#DDD3C6] md:order-2 md:min-h-[500px]",
-                      slide.imagePanel,
-                    ].join(" ")}
-                  >
+                  <div className="order-1 h-[280px] overflow-hidden rounded-[28px] md:order-2 md:h-[450px]">
                     <img
                       src={slide.image}
                       alt={slide.collectionName}
-                      className="h-[320px] w-full object-cover md:h-[500px]"
+                      className="block h-full w-full object-cover"
                     />
                   </div>
                 </div>

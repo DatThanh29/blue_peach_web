@@ -18,6 +18,7 @@ import adminNotificationsRouter from "./notifications.admin";
 import adminChatRouter from "./chat.admin";
 import uploadRouter from "./upload";
 import productImagesRouter from "./product-images";
+import adminNewsRouter from "./news.admin";
 
 const router = Router();
 
@@ -33,6 +34,7 @@ router.use("/products", requireAdminOrStaff, adminProductsRouter);
 router.use("/categories", requireAdminOrStaff, adminCategoriesRouter);
 router.use("/reports", requireAdminOrStaff, adminReportsRouter);
 router.use("/banners", requireAdminOrStaff, adminBannersRouter);
+router.use("/news", requireAdminOrStaff, adminNewsRouter);
 router.use("/coupons", requireAdminOrStaff, adminCouponsRouter);
 router.use("/inventory", requireAdminOrStaff, adminInventoryRouter);
 router.use("/reviews", requireAdminOrStaff, adminReviewsRouter);

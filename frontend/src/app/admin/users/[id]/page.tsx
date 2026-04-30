@@ -75,6 +75,7 @@ export default function AdminUserDetailPage({
   const [logs, setLogs] = useState<UserLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [roleLoading, setRoleLoading] = useState(false);
   const [error, setError] = useState("");
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -157,6 +158,33 @@ export default function AdminUserDetailPage({
       setError(err?.message || "Cập nhật trạng thái thất bại");
     } finally {
       setStatusLoading(false);
+    }
+  }
+
+  async function handleChangeRole(nextRole: AppRole) {
+    if (!user) return;
+    if (user.role === nextRole) return;
+
+    const confirmed = window.confirm(
+      `Bạn có chắc muốn đổi role của "${user.full_name || user.email || user.user_id}" thành "${nextRole}" không?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setRoleLoading(true);
+      setError("");
+
+      await adminFetch(`/admin/users/${user.user_id}/role`, {
+        method: "PATCH",
+        body: JSON.stringify({ role: nextRole }),
+      });
+
+      await loadData();
+    } catch (err: any) {
+      setError(err?.message || "Cập nhật role thất bại");
+    } finally {
+      setRoleLoading(false);
     }
   }
 
@@ -316,6 +344,17 @@ export default function AdminUserDetailPage({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-3">
+          <select
+            value={user.role}
+            disabled={roleLoading}
+            onChange={(e) => handleChangeRole(e.target.value as AppRole)}
+            className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 outline-none transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <option value="customer">Khách hàng</option>
+            <option value="staff">Nhân viên</option>
+            <option value="admin">Quản trị viên</option>
+          </select>
+
           <button
             type="button"
             onClick={() => setIsEditingProfile((prev) => !prev)}

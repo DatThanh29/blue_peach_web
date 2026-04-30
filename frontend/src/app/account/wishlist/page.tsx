@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { slugify } from "@/utils/slug";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Toast from "@/components/Toast";
+import PageBreadcrumb from "@/components/layout/PageBreadcrumb";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
 import { useWishlist } from "@/hooks/useWishlist";
 
@@ -141,7 +143,14 @@ export default function AccountWishlistPage() {
 
   if (isLoading || !isAuthenticated || !isEmailVerified) {
     return (
-      <main className="bp-surface bp-surface-plain min-h-screen pt-24 md:pt-28">
+      <main className="bp-surface bp-surface-plain min-h-screen">
+        <PageBreadcrumb
+          items={[
+            { label: "Trang chủ", href: "/" },
+            { label: "Tài khoản", href: "/account" },
+            { label: "Danh sách yêu thích", active: true },
+          ]}
+        />
         <section className="bp-container py-16">
           <div className="mx-auto max-w-[520px] text-center">
             <p className="text-sm text-black/60">Đang tải danh sách yêu thích...</p>
@@ -152,7 +161,14 @@ export default function AccountWishlistPage() {
   }
 
   return (
-    <main className="bp-surface bp-surface-plain min-h-screen pt-24 md:pt-28">
+    <main className="bp-surface bp-surface-plain min-h-screen">
+      <PageBreadcrumb
+        items={[
+          { label: "Trang chủ", href: "/" },
+          { label: "Tài khoản", href: "/account" },
+          { label: "Danh sách yêu thích", active: true },
+        ]}
+      />
       <section className="bp-container py-8 md:py-12">
         <div className="rounded-[34px] border border-black/8 bg-white/80 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.06)] backdrop-blur-sm md:p-6">
           <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
@@ -261,7 +277,7 @@ export default function AccountWishlistPage() {
                           key={item.id}
                           className="rounded-[24px] border border-black/8 bg-[#fbfaf7] p-4"
                         >
-                          <Link href={`/products/${p.ma_san_pham}`} className="group block">
+                          <Link href={`/products/${slugify(p.ten_san_pham)}-${p.ma_san_pham}`} className="group block">
                             <div className="aspect-square overflow-hidden rounded-[18px] bg-white">
                               {p.primary_image ? (
                                 <img
@@ -294,7 +310,7 @@ export default function AccountWishlistPage() {
 
                           <div className="mt-5 flex gap-3">
                             <Link
-                              href={`/products/${p.ma_san_pham}`}
+                              href={`/products/${slugify(p.ten_san_pham)}-${p.ma_san_pham}`}
                               className="bp-btn bp-btn--ghost !px-4 !py-2"
                             >
                               Xem chi tiết

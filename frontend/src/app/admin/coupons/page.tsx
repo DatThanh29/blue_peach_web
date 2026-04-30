@@ -106,7 +106,7 @@ export default function AdminCouponsPage() {
   }
 
   async function handleDelete(id: string) {
-    const ok = window.confirm("Bạn có chắc muốn xóa coupon này?");
+    const ok = window.confirm("Bạn có chắc muốn vô hiệu hóa mã giảm giá này?");
     if (!ok) return;
 
     try {
@@ -157,13 +157,6 @@ export default function AdminCouponsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Coupons</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Quản lý mã giảm giá cho checkout của khách hàng.
-        </p>
-      </div>
-
       {error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
           {error}
@@ -447,7 +440,7 @@ export default function AdminCouponsPage() {
                       onClick={() => handleDelete(item.ma_giam_gia)}
                       className="rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50"
                     >
-                      Xóa
+                      Vô hiệu hóa
                     </button>
                   </div>
                 </div>

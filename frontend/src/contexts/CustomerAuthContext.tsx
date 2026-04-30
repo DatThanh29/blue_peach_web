@@ -12,7 +12,7 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { clearCart } from "@/lib/cart";
-import { AUTH_INVALID_EVENT } from "@/lib/api";
+import { AUTH_INVALID_EVENT, authFetch } from "@/lib/api";
 
 export type CustomerProfile = {
   user_id: string;
@@ -182,6 +182,37 @@ export function CustomerAuthProvider({
       window.removeEventListener(AUTH_INVALID_EVENT, handleAuthInvalid);
     };
   }, []);
+
+  useEffect(() => {
+    async function createWelcomeCouponNotification() {
+      if (!session?.user || !checkEmailVerified(session.user)) return;
+
+      const storageKey = `bp_welcome_coupon_created_${session.user.id}`;
+
+      if (typeof window !== "undefined") {
+        const alreadyCreated = window.localStorage.getItem(storageKey);
+        if (alreadyCreated === "true") return;
+      }
+
+      try {
+        await authFetch("/notifications/welcome-coupon", {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(storageKey, "true");
+        }
+      } catch (error) {
+        console.error(
+          "[CustomerAuth] create welcome coupon notification failed:",
+          error
+        );
+      }
+    }
+
+    void createWelcomeCouponNotification();
+  }, [session]);
 
   const refreshProfile = useCallback(async () => {
     const currentUser = session?.user ?? null;

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { adminFetch } from "@/lib/api";
+import { formatShortCode } from "@/utils/formatCode";
 
 type OrderStatus =
   | "pending"
@@ -364,7 +365,7 @@ export default function AdminOrderDetailPage() {
             {formatDisplayOrderCode(order.stt_hien_thi)}
           </h1>
           <p className="mt-1 text-sm text-stone-500">
-            UUID: {order.ma_don_hang}
+            UUID: {formatShortCode(order.ma_don_hang, "#", 8)}
           </p>
           <p className="mt-1 text-sm text-stone-500">
             Đặt lúc {formatDate(order.ngay_dat_hang)}
@@ -445,7 +446,7 @@ export default function AdminOrderDetailPage() {
                   {(order.items ?? []).map((item, idx) => (
                     <tr key={`${item.ma_san_pham || idx}-${idx}`}>
                       <td className="px-4 py-3 text-stone-800">
-                        {item.ten_san_pham || item.ma_san_pham || "—"}
+                        {item.ten_san_pham || formatShortCode(item.ma_san_pham, "SP-", 8) || "—"}
                       </td>
                       <td className="px-4 py-3 text-stone-500">
                         {item.sku || "—"}

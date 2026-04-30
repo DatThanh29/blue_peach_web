@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Toast from "@/components/Toast";
+import PageBreadcrumb from "@/components/layout/PageBreadcrumb";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
 
 type NavItem = {
@@ -13,15 +14,23 @@ type NavItem = {
   badge?: string;
 };
 
+type BreadcrumbItem = {
+  label: string;
+  href?: string;
+  active?: boolean;
+};
+
 export default function AccountShell({
   title,
   description,
   eyebrow = "Tài khoản Blue Peach",
+  breadcrumbItems,
   children,
 }: {
   title: string;
   description: string;
   eyebrow?: string;
+  breadcrumbItems?: BreadcrumbItem[];
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -119,7 +128,8 @@ export default function AccountShell({
 
   if (isLoading || !isAuthenticated || !isEmailVerified) {
     return (
-      <main className="bp-surface bp-surface-plain min-h-screen pt-24 md:pt-28">
+      <main className="bp-surface bp-surface-plain min-h-screen">
+        {breadcrumbItems?.length ? <PageBreadcrumb items={breadcrumbItems} /> : null}
         <section className="bp-container py-16">
           <div className="mx-auto max-w-[520px] text-center">
             <p className="text-sm text-black/60">Đang tải tài khoản...</p>
@@ -130,7 +140,8 @@ export default function AccountShell({
   }
 
   return (
-    <main className="bp-surface bp-surface-plain min-h-screen pt-24 md:pt-28">
+    <main className="bp-surface bp-surface-plain min-h-screen">
+      {breadcrumbItems?.length ? <PageBreadcrumb items={breadcrumbItems} /> : null}
       <section className="bp-container py-8 md:py-12">
         <div className="rounded-[34px] border border-black/8 bg-white/80 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.06)] backdrop-blur-sm md:p-6">
           <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">

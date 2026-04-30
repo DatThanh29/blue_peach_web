@@ -30,11 +30,9 @@ export default function AdminGuard() {
         const role = res?.user?.role;
 
         if (role !== "admin" && role !== "staff") {
-          await supabase.auth.signOut();
-          if (mounted) router.replace("/admin/login");
+          if (mounted) router.replace("/admin/login?error=forbidden");
           return;
         }
-
         const adminOnlyPaths = ["/admin/users"];
 
         const isAdminOnlyPath = adminOnlyPaths.some(
@@ -45,8 +43,23 @@ export default function AdminGuard() {
           if (mounted) router.replace("/admin");
           return;
         }
-      } catch {
-        await supabase.auth.signOut();
+      } catch (error) {
+        const status =
+          error && typeof error === "object" && "status" in error
+            ? (error as { status?: number }).status
+            : undefined;
+
+        if (status === 401) {
+          await supabase.auth.signOut();
+          if (mounted) router.replace("/admin/login");
+          return;
+        }
+
+        if (status === 403) {
+          if (mounted) router.replace("/admin/login?error=forbidden");
+          return;
+        }
+
         if (mounted) router.replace("/admin/login");
       }
     }

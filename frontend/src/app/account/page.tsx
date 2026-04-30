@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Toast from "@/components/Toast";
+import PageBreadcrumb from "@/components/layout/PageBreadcrumb";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
 
 type NavItem = {
@@ -104,25 +105,21 @@ export default function AccountPage() {
       label: "Thông báo",
       href: "/account/notifications",
       icon: <BellIcon />,
-      badge: "Soon",
     },
     {
       label: "Yêu thích",
       href: "/account/wishlist",
       icon: <HeartIcon />,
-      badge: "Soon",
     },
     {
       label: "AI tư vấn",
       href: "/account/ai-assistant",
       icon: <SparklesIcon />,
-      badge: "Soon",
     },
     {
       label: "Chat với Admin",
       href: "/account/chat-admin",
       icon: <ChatIcon />,
-      badge: "Soon",
     },
     {
       label: "Bảo mật tài khoản",
@@ -160,7 +157,13 @@ export default function AccountPage() {
 
   if (isLoading || !isAuthenticated || !isEmailVerified) {
     return (
-      <main className="bp-surface bp-surface-plain min-h-screen pt-24 md:pt-28">
+      <main className="bp-surface bp-surface-plain min-h-screen">
+        <PageBreadcrumb
+          items={[
+            { label: "Trang chủ", href: "/" },
+            { label: "Tài khoản", active: true },
+          ]}
+        />
         <section className="bp-container py-16">
           <div className="mx-auto max-w-[520px] text-center">
             <p className="text-sm text-black/60">Đang tải tài khoản...</p>
@@ -171,7 +174,13 @@ export default function AccountPage() {
   }
 
   return (
-    <main className="bp-surface bp-surface-plain min-h-screen pt-24 md:pt-28">
+    <main className="bp-surface bp-surface-plain min-h-screen">
+      <PageBreadcrumb
+        items={[
+          { label: "Trang chủ", href: "/" },
+          { label: "Tài khoản", active: true },
+        ]}
+      />
       <section className="bp-container py-8 md:py-12">
         <div className="rounded-[34px] border border-black/8 bg-white/80 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.06)] backdrop-blur-sm md:p-6">
           <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">

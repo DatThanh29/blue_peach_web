@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { API_BASE_URL, adminFetch } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 type DashboardStats = {
   totalOrders: number;
@@ -659,7 +660,15 @@ export default function AdminDashboardPage() {
     try {
       setExporting(true);
 
-      const adminToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        throw new Error("Phiên đăng nhập admin đã hết hạn. Vui lòng đăng nhập lại.");
+      }
       const params = new URLSearchParams();
       if (fromDate) params.set("from", fromDate);
       if (toDate) params.set("to", toDate);
@@ -668,7 +677,7 @@ export default function AdminDashboardPage() {
         `${API_BASE_URL}/admin/reports/revenue/export?${params.toString()}`,
         {
           headers: {
-            ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+            Authorization: `Bearer ${accessToken}`,
           },
         }
       );
@@ -771,7 +780,7 @@ export default function AdminDashboardPage() {
     vnpay: "#2563eb",
   };
 
-    const displayRevenueSeries = buildDemoRevenueSeries({
+  const displayRevenueSeries = buildDemoRevenueSeries({
     rawSeries: data.revenueSeries || [],
     fromDate,
     toDate,

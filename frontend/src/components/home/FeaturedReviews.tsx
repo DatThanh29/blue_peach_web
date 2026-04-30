@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { slugify } from "@/utils/slug";
 import { motion } from "framer-motion";
 
 type FeaturedReviewItem = {
@@ -101,10 +102,10 @@ export default function FeaturedReviews({
                                 className="flex h-full flex-col border border-[#DED8CC] bg-[#F8F8F5] transition duration-300 hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(31,31,31,0.06)]"
                             >
                                 {productImage ? (
-                                    <Link
-                                        href={`/products/${productId}`}
-                                        className="block border-b border-[#DED8CC] bg-[#F3F1EB]"
-                                    >
+                                        <Link
+                                            href={`/products/${slugify(productName)}-${productId}`}
+                                            className="block border-b border-[#DED8CC] bg-[#F3F1EB]"
+                                        >
                                         <div className="flex aspect-[4/3] items-center justify-center p-6">
                                             {productImage ? (
                                                 <img
@@ -143,7 +144,7 @@ export default function FeaturedReviews({
                                         </p>
 
                                         <Link
-                                            href={`/products/${productId}`}
+                                            href={`/products/${slugify(productName)}-${productId}`}
                                             className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-[#1F1F1F] transition hover:opacity-70"
                                         >
                                             {productName}

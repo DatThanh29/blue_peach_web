@@ -29,6 +29,7 @@ export default function RootLayoutClient({
 
   const shouldShowHeader = !isAdminRoute && !hideHeaderForAuthRoute;
   const shouldShowFooter = !isAdminRoute && !hideHeaderForAuthRoute;
+  const shouldShowSupportWidget = !isAdminRoute && !hideHeaderForAuthRoute;
 
   return (
     <CustomerAuthProvider>
@@ -36,7 +37,7 @@ export default function RootLayoutClient({
         {shouldShowHeader ? <Header /> : null}
         {children}
         {shouldShowFooter ? <CustomerFooter /> : null}
-        <FloatingSupportWidget />
+        {shouldShowSupportWidget ? <FloatingSupportWidget /> : null}
       </CartProvider>
     </CustomerAuthProvider>
   );

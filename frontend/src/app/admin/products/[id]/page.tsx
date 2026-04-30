@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { adminFetch, API_BASE_URL } from "@/lib/api";
+import { formatShortCode } from "@/utils/formatCode";
 import { supabase } from "@/lib/supabase";
 
 type Category = {

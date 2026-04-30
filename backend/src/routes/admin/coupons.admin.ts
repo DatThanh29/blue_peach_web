@@ -113,18 +113,27 @@ router.patch("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  const id = req.params.id;
+  const { id } = req.params;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("coupons")
-    .delete()
-    .eq("ma_giam_gia", id);
+    .update({
+      trang_thai: false,
+      ngay_cap_nhat: new Date().toISOString(),
+    })
+    .eq("ma_giam_gia", id)
+    .select("*")
+    .single();
 
   if (error) {
     return res.status(500).json({ error: error.message });
   }
 
-  return res.json({ ok: true });
+  return res.json({
+    ok: true,
+    message: "Đã vô hiệu hóa mã giảm giá.",
+    item: data,
+  });
 });
 
 export default router;

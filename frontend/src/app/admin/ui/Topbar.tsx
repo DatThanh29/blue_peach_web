@@ -24,6 +24,7 @@ function getPageTitle(pathname: string | null) {
   if (pathname?.startsWith("/admin/products")) return "Sản phẩm";
   if (pathname?.startsWith("/admin/categories")) return "Danh mục";
   if (pathname?.startsWith("/admin/reviews")) return "Đánh giá";
+  if (pathname?.startsWith("/admin/news")) return "Tin tức";
   if (pathname?.startsWith("/admin/login")) return "Đăng nhập";
   if (pathname?.startsWith("/admin/register")) return "Đăng ký";
   return "Quản trị";
@@ -44,6 +45,9 @@ function getPageDescription(pathname: string | null) {
   }
   if (pathname?.startsWith("/admin/reviews")) {
     return "Duyệt, ẩn và quản lý đánh giá sản phẩm từ khách hàng.";
+  }
+  if (pathname?.startsWith("/admin/news")) {
+    return "Quản lý bài viết, trạng thái xuất bản và nội dung tin tức.";
   }
   return "Khu vực quản trị Blue Peach.";
 }

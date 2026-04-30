@@ -16,29 +16,33 @@ export default function CollectionProductsGrid({
   title = "Sản phẩm trong bộ sưu tập",
   description,
   products,
+  compactHeader,
 }: {
   title?: string;
   description?: string;
   products: CollectionProduct[];
+  compactHeader?: boolean;
 }) {
   return (
-    <section className="py-12 md:py-16">
+    <section className={compactHeader ? "pb-12 md:pb-16" : "py-12 md:py-16"}>
       <div className="bp-container">
-        <div className="mx-auto mb-8 max-w-2xl text-center md:mb-10">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#7B8791]">
-            Curated for you
-          </p>
-
-          <h2 className="font-heading mt-4 text-4xl font-medium tracking-[-0.02em] text-[#1F1F1F] md:text-5xl">
-            {title}
-          </h2>
-
-          {description ? (
-            <p className="mt-4 text-sm leading-6 text-[#66707A] md:text-base">
-              {description}
+        {!compactHeader ? (
+          <div className="mx-auto mb-8 max-w-2xl text-center md:mb-10">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#7B8791]">
+              Curated for you
             </p>
-          ) : null}
-        </div>
+
+            <h2 className="font-heading mt-4 text-4xl font-medium tracking-[-0.02em] text-[#1F1F1F] md:text-5xl">
+              {title}
+            </h2>
+
+            {description ? (
+              <p className="mt-4 text-sm leading-6 text-[#66707A] md:text-base">
+                {description}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {products.length === 0 ? (
           <div className="border border-[#DED8CC] bg-[#F8F8F5] px-6 py-14 text-center">

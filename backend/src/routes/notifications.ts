@@ -32,6 +32,74 @@ router.get("/", requireAuth, async (req, res) => {
     });
   }
 });
+router.post("/welcome-coupon", requireAuth, async (req, res) => {
+  try {
+    const userId = req.authUser!.userId;
+
+    const { data: existingItems, error: existingError } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("type", "welcome_coupon")
+      .limit(1);
+
+    if (existingError) {
+      return res.status(500).json({ error: existingError.message });
+    }
+
+    if ((existingItems ?? []).length > 0) {
+      return res.json({
+        ok: true,
+        created: false,
+        message: "Welcome coupon notification already exists",
+      });
+    }
+
+    const { data: coupon } = await supabase
+      .from("coupons")
+      .select("code, loai_giam_gia, gia_tri_giam, don_hang_toi_thieu")
+      .eq("trang_thai", true)
+      .ilike("code", "%NEW%")
+      .order("ngay_tao", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const couponCode = coupon?.code || "NEWPEACH15";
+    const discountText =
+      coupon?.loai_giam_gia === "percent"
+        ? `giảm ${coupon.gia_tri_giam}%`
+        : coupon?.gia_tri_giam
+          ? `giảm ${Number(coupon.gia_tri_giam).toLocaleString("vi-VN")}đ`
+          : "ưu đãi đặc biệt";
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .insert({
+        user_id: userId,
+        type: "welcome_coupon",
+        title: "Chào mừng bạn đến với Blue Peach",
+        message: `Bạn nhận được mã ${couponCode} ${discountText} cho đơn hàng đầu tiên. Hãy sao chép mã và sử dụng khi thanh toán.`,
+        link: `/products?coupon=${encodeURIComponent(couponCode)}`,
+        is_read: false,
+      })
+      .select("id, type, title, message, link, is_read, created_at")
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.status(201).json({
+      ok: true,
+      created: true,
+      item: data,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      error: error?.message || "Cannot create welcome coupon notification",
+    });
+  }
+});
 
 router.post("/mark-read", requireAuth, async (req, res) => {
   try {

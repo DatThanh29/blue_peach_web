@@ -6,43 +6,43 @@ import { motion } from "framer-motion";
 const tiles = [
   {
     title: "Nhẫn đôi",
-    href: "/products?category=nhan-doi",
+    href: "products?category=nhan-doi",
     img: "/home/categories/nhan-doi.png",
   },
   {
     title: "Khuyên tai",
-    href: "/products?category=khuyen-tai",
+    href: "products?category=khuyen-tai",
     img: "/home/categories/khuyen-tai.png",
   },
   {
     title: "Dây chuyền",
-    href: "/products?category=day-chuyen",
+    href: "products?category=day-chuyen",
     img: "/home/categories/day-chuyen.png",
   },
   {
     title: "Lắc chân",
-    href: "/products?category=lac-chan",
+    href: "products?category=lac-chan",
     img: "/home/categories/lac-chan.png",
   },
   {
     title: "Vòng tay",
-    href: "/products?category=lac-tay",
+    href: "products?category=lac-tay",
     img: "/home/categories/lac-tay.png",
   },
   {
     title: "Nhẫn",
-    href: "/products?category=nhan",
+    href: "products?category=nhan",
     img: "/home/categories/nhan.png",
   },
   {
     title: "Vòng tay đôi",
-    href: "/products?category=lac-tay-doi",
+    href: "products?category=lac-tay-doi",
     img: "/home/categories/lac-tay-doi.png",
   },
 
   {
     title: "Phụ kiện",
-    href: "/products?category=phu-kien",
+    href: "products?category=phu-kien",
     img: "/home/categories/phu-kien.jpg",
   },
 ];

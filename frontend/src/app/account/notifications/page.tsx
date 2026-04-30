@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import AccountShell from "@/components/account/AccountShell";
+import PageBreadcrumb from "@/components/layout/PageBreadcrumb";
 import Toast from "@/components/Toast";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useState } from "react";
@@ -31,6 +32,11 @@ function NotificationTypePill({ type }: { type: string }) {
       {labelMap[type] || "Thông báo"}
     </span>
   );
+}
+
+function extractCouponCode(message: string) {
+  const match = message.match(/\b[A-Z0-9]{5,20}\b/);
+  return match?.[0] || "";
 }
 
 export default function AccountNotificationsPage() {
@@ -121,6 +127,11 @@ export default function AccountNotificationsPage() {
     <AccountShell
       title="Thông báo"
       description="Khu vực này hiển thị các cập nhật liên quan đến đơn hàng, tài khoản, ưu đãi và các hoạt động mới từ Blue Peach."
+      breadcrumbItems={[
+        { label: "Trang chủ", href: "/" },
+        { label: "Tài khoản", href: "/account" },
+        { label: "Thông báo", active: true },
+      ]}
     >
       <div className="rounded-[28px] border border-black/8 bg-white/90 p-6 shadow-[0_16px_50px_rgba(0,0,0,0.04)] md:p-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -202,6 +213,22 @@ export default function AccountNotificationsPage() {
                     <p className="mt-3 text-sm leading-7 text-black/66">
                       {item.message}
                     </p>
+
+                    {item.type === "welcome_coupon" ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const code = extractCouponCode(item.message);
+                          if (code) {
+                            navigator.clipboard.writeText(code);
+                            alert(`Đã sao chép mã ${code}`);
+                          }
+                        }}
+                        className="mt-3 rounded-full border border-[#1F1F1F] bg-[#1F1F1F] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                      >
+                        Sao chép mã ưu đãi
+                      </button>
+                    ) : null}
 
                     <p className="mt-4 text-xs uppercase tracking-[0.16em] text-black/38">
                       {formatTime(item.created_at)}

@@ -188,13 +188,6 @@ export default function AdminBannersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Banners</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Quản lý banner cho HomeCampaign ở trang chủ.
-        </p>
-      </div>
-
       {error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
           {error}

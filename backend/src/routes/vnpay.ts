@@ -1,6 +1,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { supabase } from "../lib/supabase";
+import { requireAuth } from "../middlewares/auth";
 import { increaseCouponUsage, validateCouponCode } from "../lib/coupons";
 import { createStockMovement } from "../lib/stock";
 
@@ -114,8 +115,10 @@ function getClientIp(req: any) {
   );
 }
 
-router.post("/create", async (req, res) => {
+router.post("/create", requireAuth, async (req, res) => {
   try {
+    const userId = req.authUser!.userId;
+
     if (!VNP_TMN_CODE || !VNP_HASH_SECRET || !VNP_RETURN_URL) {
       return res.status(500).json({
         error: "VNPay env chưa được cấu hình đầy đủ.",
@@ -245,7 +248,7 @@ if (!hasLegacyCustomerInfo && !hasShippingSnapshot) {
     const { data: created, error: orderErr } = await supabase
       .from("orders")
       .insert({
-        ma_nguoi_dung: body.customer_user_id ?? null,
+        ma_nguoi_dung: userId,
         dia_chi_giao_hang_snapshot: dia_chi_snapshot,
         ghi_chu: body.note ?? null,
         tong_tien_hang,
@@ -276,8 +279,6 @@ if (!hasLegacyCustomerInfo && !hasShippingSnapshot) {
     );
 
     if (detailsErr) return res.status(500).json({ error: detailsErr.message });
-
-    await increaseCouponUsage(couponId);
 
     const now = new Date();
     const createDate = formatDateVN(now);
@@ -351,7 +352,7 @@ router.get("/return", async (req, res) => {
 
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .select("ma_don_hang, tong_thanh_toan, trang_thai_thanh_toan")
+      .select("ma_don_hang, tong_thanh_toan, trang_thai_thanh_toan, ma_giam_gia, coupon_code, ma_nguoi_dung")
       .eq("ma_tham_chieu_thanh_toan", txnRef)
       .maybeSingle();
 
@@ -388,6 +389,10 @@ router.get("/return", async (req, res) => {
           ngay_thanh_toan: new Date().toISOString(),
         })
         .eq("ma_don_hang", order.ma_don_hang);
+
+      if (order.ma_giam_gia) {
+        await increaseCouponUsage(order.ma_giam_gia);
+      }
 
       const { data: items } = await supabase
         .from("order_details")
@@ -474,7 +479,7 @@ router.get("/ipn", async (req, res) => {
 
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .select("ma_don_hang, tong_thanh_toan, trang_thai_thanh_toan")
+      .select("ma_don_hang, tong_thanh_toan, trang_thai_thanh_toan, ma_giam_gia, coupon_code, ma_nguoi_dung")
       .eq("ma_tham_chieu_thanh_toan", txnRef)
       .maybeSingle();
 
@@ -512,6 +517,10 @@ router.get("/ipn", async (req, res) => {
         return res.json({ RspCode: "99", Message: updateErr.message });
       }
 
+
+      if (order.ma_giam_gia) {
+        await increaseCouponUsage(order.ma_giam_gia);
+      }
       const { data: items, error: itemsErr } = await supabase
         .from("order_details")
         .select("ma_san_pham, so_luong_mua")

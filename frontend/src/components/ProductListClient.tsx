@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
+import { useSearchParams } from "next/navigation";
 
 type Product = {
   ma_san_pham: string;
@@ -39,7 +40,7 @@ const SORT_OPTIONS = [
 ];
 
 const MIN_PRICE = 0;
-const MAX_PRICE = 3000000;
+const MAX_PRICE = 2000000;
 const PRICE_STEP = 50000;
 
 function formatPrice(value: number) {
@@ -62,8 +63,10 @@ function ProductSkeleton() {
 }
 
 export default function ProductListClient() {
-  const [q, setQ] = useState("");
-  const [keyword, setKeyword] = useState("");
+  const searchParams = useSearchParams();
+  const q = searchParams.get("q") || "";
+
+  const [search, setSearch] = useState("");
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -147,12 +150,31 @@ export default function ProductListClient() {
 
   useEffect(() => {
     loadCategories();
-    load(0, "", "all");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (q) {
+      setSearch(q);
+    }
+  }, [q]);
+
+  useEffect(() => {
+    load(0, search, categoryId, minPrice, maxPrice);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, categoryId, minPrice, maxPrice, sort]);
+
   const sortedItems = useMemo(() => {
-    const items = [...(data?.items ?? [])];
+    const normalizedSearch = search.trim().toLowerCase();
+
+    const filteredProducts = (data?.items ?? []).filter((p) => {
+      return (
+        !normalizedSearch ||
+        p.ten_san_pham.toLowerCase().includes(normalizedSearch)
+      );
+    });
+
+    const items = [...filteredProducts];
 
     if (sort === "price-asc") {
       items.sort((a, b) => Number(a.gia_ban) - Number(b.gia_ban));
@@ -163,355 +185,357 @@ export default function ProductListClient() {
     }
 
     return items;
-  }, [data?.items, sort]);
+  }, [data?.items, search, sort]);
 
   const offset = data?.offset ?? 0;
   const total = data?.total ?? 0;
+  const selectedCategoryName =
+    categoryId === "all"
+      ? "Tất cả sản phẩm"
+      : categories.find((item) => item.ma_danh_muc === categoryId)?.ten_danh_muc ||
+      "Danh mục đã chọn";
 
   return (
     <main className="min-h-screen bg-[#f7f6f2] text-[var(--bp-text)]">
-      <section className="bp-surface bp-surface-warm border-b border-[#DED8CC] pt-3 md:pt-4">
-        <div className="bp-container py-12 md:py-16">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#7B8791]">
-            Blue Peach
-          </p>
+      <section className="border-b border-[#E5DED4] bg-[#F4F1EB]">
+        <div className="bp-container py-4">
+          <nav className="flex flex-wrap items-center gap-2 text-sm text-[#8C8478]">
+            <a href="/" className="transition hover:text-[#1F1F1F]">
+              Trang chủ
+            </a>
 
-          <div className="mt-5 grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
-            <div className="max-w-3xl">
-              <h1 className="font-heading text-[46px] font-medium leading-[0.94] tracking-[-0.03em] text-[#1F1F1F] md:text-[72px]">
-                Tất cả sản phẩm
-              </h1>
+            <span>/</span>
 
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-[#66707A] md:text-base">
-                Khám phá toàn bộ thiết kế bạc của Blue Peach — tinh giản, nữ tính và được tuyển chọn cho vẻ đẹp thường ngày theo tinh thần hiện đại, nhẹ nhàng.
-              </p>
-            </div>
+            <span className="text-[#C46B3A]">Danh mục</span>
 
-            <div className="self-end text-sm text-[#8C8478]">
-              {loading ? "Đang tải sản phẩm..." : `${total} sản phẩm`}
-            </div>
-          </div>
+            <span>/</span>
+
+            <span className="text-[#66707A]">Tất cả sản phẩm</span>
+          </nav>
         </div>
       </section>
 
-      <section className="bp-surface bp-surface-plain py-8 md:py-10">
+
+      <section className="bp-surface bp-surface-plain py-10 md:py-12">
         <div className="bp-container">
-          <div className="overflow-hidden rounded-[28px] border border-[#E3DBCF] bg-[#FBFAF7] shadow-[0_18px_44px_rgba(0,0,0,0.04)]">
-            <div className="border-b border-[#EEE6D9] px-5 py-4 md:px-7 md:py-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7B8791]">
-                    Curated filters
-                  </p>
-                  <h2 className="mt-2 text-[16px] font-medium text-[#1F1F1F] md:text-[18px]">
-                    Thu hẹp lựa chọn theo phong cách của bạn
-                  </h2>
-                </div>
-
-                <div className="text-sm text-[#8C8478]">
-                  {categoriesLoading ? "Đang tải danh mục..." : "Tìm kiếm • Danh mục • Giá"}
-                </div>
-              </div>
-            </div>
-
-            <div className="px-5 py-5 md:px-7 md:py-6">
-              <div className="grid gap-4 xl:grid-cols-[1.2fr_0.85fr_0.85fr_1.1fr]">
-                <div>
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7B8791]">
-                    Tìm kiếm
-                  </label>
-
-                  <div className="flex gap-3">
-                    <input
-                      value={q}
-                      onChange={(e) => setQ(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          setKeyword(q);
-                          load(0, q, categoryId, minPrice, maxPrice);
-                        }
-                      }}
-                      placeholder="Tên sản phẩm, kiểu dáng..."
-                      className="h-12 w-full rounded-full border border-[#E2D9CC] bg-white px-5 text-sm text-[#1F1F1F] outline-none transition focus:border-[#1F1F1F]/25"
-                    />
-
-                    <button
-                      onClick={() => {
-                        setKeyword(q);
-                        load(0, q, categoryId, minPrice, maxPrice);
-                      }}
-                      className="h-12 rounded-full border border-[#1F1F1F] bg-[#1F1F1F] px-6 text-sm font-semibold text-white transition hover:opacity-90"
-                    >
-                      Tìm
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7B8791]">
-                    Danh mục
-                  </label>
-
-                  <select
-                    value={categoryId}
-                    onChange={(e) => {
-                      const nextCategoryId = e.target.value;
-                      setCategoryId(nextCategoryId);
-                      load(0, keyword, nextCategoryId, minPrice, maxPrice);
-                    }}
-                    className="h-12 w-full rounded-full border border-[#E2D9CC] bg-white px-5 text-sm text-[#1F1F1F] outline-none"
-                  >
-                    <option value="all">Tất cả</option>
-                    {categories.map((option) => (
-                      <option key={option.ma_danh_muc} value={option.ma_danh_muc}>
-                        {option.ten_danh_muc}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7B8791]">
-                    Sắp xếp
-                  </label>
-
-                  <select
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value)}
-                    className="h-12 w-full rounded-full border border-[#E2D9CC] bg-white px-5 text-sm text-[#1F1F1F] outline-none"
-                  >
-                    {SORT_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7B8791]">
-                    Khoảng giá
-                  </label>
-
-                  <div className="rounded-[24px] border border-[#E8E0D4] bg-white px-5 py-4">
-                    <div className="flex items-center justify-between gap-3 text-sm text-[#1F1F1F]">
-                      <span>{formatPrice(minPrice)}</span>
-                      <span className="text-[#8C8478]">—</span>
-                      <span>{formatPrice(maxPrice)}</span>
-                    </div>
-
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <div className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-[#8C8478]">
-                          Giá từ
-                        </div>
-                        <input
-                          type="range"
-                          min={MIN_PRICE}
-                          max={MAX_PRICE}
-                          step={PRICE_STEP}
-                          value={minPrice}
-                          onChange={(e) => {
-                            const nextMin = Math.min(Number(e.target.value), maxPrice - PRICE_STEP);
-                            setMinPrice(nextMin);
-                          }}
-                          className="w-full accent-[#1F1F1F]"
-                        />
-                      </div>
-
-                      <div>
-                        <div className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-[#8C8478]">
-                          Giá đến
-                        </div>
-                        <input
-                          type="range"
-                          min={MIN_PRICE}
-                          max={MAX_PRICE}
-                          step={PRICE_STEP}
-                          value={maxPrice}
-                          onChange={(e) => {
-                            const nextMax = Math.max(Number(e.target.value), minPrice + PRICE_STEP);
-                            setMaxPrice(nextMax);
-                          }}
-                          className="w-full accent-[#1F1F1F]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-2.5">
-                <button
-                  onClick={() => {
-                    setCategoryId("all");
-                    load(0, keyword, "all", minPrice, maxPrice);
-                  }}
-                  className={[
-                    "rounded-full border px-4 py-2.5 text-sm transition",
-                    categoryId === "all"
-                      ? "border-[#1F1F1F] bg-[#1F1F1F] text-white"
-                      : "border-[#E2D9CC] bg-white text-[#66707A] hover:text-[#1F1F1F]",
-                  ].join(" ")}
-                >
-                  Tất cả
-                </button>
-
-                {categories.map((option) => {
-                  const active = categoryId === option.ma_danh_muc;
-
-                  return (
-                    <button
-                      key={option.ma_danh_muc}
-                      onClick={() => {
-                        setCategoryId(option.ma_danh_muc);
-                        load(0, keyword, option.ma_danh_muc, minPrice, maxPrice);
-                      }}
-                      className={[
-                        "rounded-full border px-4 py-2.5 text-sm transition",
-                        active
-                          ? "border-[#1F1F1F] bg-[#1F1F1F] text-white"
-                          : "border-[#E2D9CC] bg-white text-[#66707A] hover:text-[#1F1F1F]",
-                      ].join(" ")}
-                    >
-                      {option.ten_danh_muc}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <button
-                  onClick={() => load(0, keyword, categoryId, minPrice, maxPrice)}
-                  className="rounded-full border border-[#1F1F1F] bg-[#1F1F1F] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  Áp dụng khoảng giá
-                </button>
-
-                <button
-                  onClick={() => {
-                    const nextMin = MIN_PRICE;
-                    const nextMax = MAX_PRICE;
-                    setMinPrice(nextMin);
-                    setMaxPrice(nextMax);
-                    load(0, keyword, categoryId, nextMin, nextMax);
-                  }}
-                  className="rounded-full border border-[#E2D9CC] bg-white px-5 py-3 text-sm font-medium text-[#1F1F1F] transition hover:border-[#1F1F1F]/30"
-                >
-                  Đặt lại giá
-                </button>
-
-                {(minPrice > MIN_PRICE || maxPrice < MAX_PRICE) ? (
-                  <p className="text-sm text-[#66707A]">
-                    Khoảng giá:{" "}
-                    <span className="font-medium text-[#1F1F1F]">
-                      {formatPrice(minPrice)} - {formatPrice(maxPrice)}
-                    </span>
-                  </p>
-                ) : null}
-              </div>
-
-              {keyword ? (
-                <p className="mt-4 text-sm text-[#66707A]">
-                  Kết quả tìm kiếm cho{" "}
-                  <span className="font-medium text-[#1F1F1F]">{keyword}</span>
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="bp-surface bp-surface-plain pb-14 md:pb-16">
-        <div className="bp-container">
-          <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#7B8791]">
                 Blue Peach Edit
               </p>
+
               <h2 className="font-heading mt-3 text-3xl font-medium tracking-[-0.02em] text-[#1F1F1F] md:text-4xl">
                 Thiết kế dành cho vẻ đẹp thường ngày
               </h2>
+
+              <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[#66707A]">
+                <span>{selectedCategoryName}</span>
+
+                <span className="text-[#CFC7BA]">/</span>
+
+                <span>{loading ? "Đang tải sản phẩm..." : `${total} sản phẩm`}</span>
+
+                {search ? (
+                  <>
+                    <span className="text-[#CFC7BA]">/</span>
+                    <span>Tìm kiếm: {search}</span>
+                  </>
+                ) : null}
+              </p>
             </div>
 
-            <div className="text-sm text-[#8C8478]">
-              {total ? `${offset + 1}-${Math.min(offset + limit, total)} / ${total}` : ""}
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-[#66707A]">Sắp xếp:</span>
+
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                className="h-11 min-w-[180px] rounded-full border border-[#E2D9CC] bg-white px-4 text-sm text-[#1F1F1F] outline-none"
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          {loading ? (
-            <div className="grid grid-cols-2 border-b border-r border-[#E3DBCF] lg:grid-cols-3 xl:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <ProductSkeleton key={i} />
-              ))}
-            </div>
-          ) : sortedItems.length === 0 ? (
-            <div className="rounded-[28px] border border-[#E3DBCF] bg-[#FBFAF7] px-6 py-14 text-center shadow-[0_16px_38px_rgba(0,0,0,0.03)]">
-              <h2 className="font-heading text-4xl font-medium text-[#1F1F1F]">
-                Không tìm thấy sản phẩm
-              </h2>
+          <div className="grid gap-7 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)]">
+            <aside className="lg:sticky lg:top-28 lg:self-start">
+              <div className="rounded-[24px] border border-[#E3DBCF] bg-[#FBFAF7] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.03)] md:p-5">
+                <div className="border-b border-[#E9E1D6] pb-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7B8791]">
+                    Bộ lọc
+                  </p>
 
-              <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-[#66707A]">
-                Hãy thử lại với từ khóa khác, điều chỉnh khoảng giá hoặc chọn một danh mục khác để xem thêm sản phẩm phù hợp.
-              </p>
+                  <h3 className="mt-2 text-lg font-medium text-[#1F1F1F]">
+                    Thu hẹp lựa chọn
+                  </h3>
+                </div>
 
-              <button
-                onClick={() => {
-                  const nextMin = MIN_PRICE;
-                  const nextMax = MAX_PRICE;
-                  setQ("");
-                  setKeyword("");
-                  setCategoryId("all");
-                  setSort("newest");
-                  setMinPrice(nextMin);
-                  setMaxPrice(nextMax);
-                  load(0, "", "all", nextMin, nextMax);
-                }}
-                className="mt-6 rounded-full border border-[#1F1F1F] bg-[#1F1F1F] px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-              >
-                Đặt lại bộ lọc
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 border-b border-r border-[#E3DBCF] lg:grid-cols-3 xl:grid-cols-4">
-              {sortedItems.map((p) => (
-                <ProductCard
-                  key={p.ma_san_pham}
-                  product={p}
-                  badgeText={p.so_luong_ton > 0 ? "Blue Peach" : "Hết hàng"}
-                  description="Trang sức bạc được tuyển chọn theo tinh thần tối giản, nữ tính và thanh lịch."
-                  showAddToCart
-                  showStock
-                />
-              ))}
-            </div>
-          )}
+                <div className="space-y-5 py-5">
+                  <div>
+                    <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7B8791]">
+                      Tìm kiếm
+                    </label>
 
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-[#66707A]">
-              {loading ? "Đang cập nhật danh sách..." : "Tiếp tục khám phá thêm các thiết kế khác"}
-            </div>
+                    <div className="flex gap-2">
+                      <input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            setSearch(search.trim());
+                          }
+                        }}
+                        placeholder="Tên sản phẩm..."
+                        className="h-11 w-full rounded-full border border-[#E2D9CC] bg-white px-4 text-sm text-[#1F1F1F] outline-none transition focus:border-[#1F1F1F]/25"
+                      />
 
-            <div className="flex gap-3">
-              <button
-                disabled={offset <= 0 || loading}
-                onClick={() =>
-                  load(Math.max(0, offset - limit), keyword, categoryId, minPrice, maxPrice)
-                }
-                className="rounded-full border border-[#E2D9CC] bg-white px-5 py-3 text-sm font-medium text-[#1F1F1F] transition disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                ← Trước
-              </button>
+                      <button
+                        onClick={() => {
+                          setSearch(search.trim());
+                        }}
+                        className="h-11 rounded-full border border-[#1F1F1F] bg-[#1F1F1F] px-4 text-sm font-semibold text-white transition hover:opacity-90"
+                      >
+                        Tìm
+                      </button>
+                    </div>
+                  </div>
 
-              <button
-                disabled={offset + limit >= total || loading}
-                onClick={() =>
-                  load(offset + limit, keyword, categoryId, minPrice, maxPrice)
-                }
-                className="rounded-full border border-[#E2D9CC] bg-white px-5 py-3 text-sm font-medium text-[#1F1F1F] transition disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Sau →
-              </button>
+                  <div className="border-t border-[#E9E1D6] pt-6">
+                    <div className="mb-3 flex items-center justify-between">
+                      <label className="block text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7B8791]">
+                        Mức giá
+                      </label>
+
+                      <span className="text-xs text-[#8C8478]">
+                        0đ - {formatPrice(MAX_PRICE)}
+                      </span>
+                    </div>
+
+                    <div className="rounded-[22px] border border-[#E8E0D4] bg-white px-4 py-4">
+                      <div className="mb-3 text-sm font-medium text-[#1F1F1F]">
+                        {formatPrice(minPrice)} - {formatPrice(maxPrice)}
+                      </div>
+
+                      <input
+                        type="range"
+                        min={MIN_PRICE}
+                        max={MAX_PRICE}
+                        step={PRICE_STEP}
+                        value={maxPrice}
+                        onChange={(e) => {
+                          const nextMax = Math.max(
+                            Number(e.target.value),
+                            minPrice + PRICE_STEP
+                          );
+                          setMaxPrice(nextMax);
+                        }}
+                        className="w-full accent-[#1F1F1F]"
+                        aria-label="Giá tối đa"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[#E9E1D6] pt-6">
+                    <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7B8791]">
+                      Danh mục
+                    </label>
+
+                    <div className="max-h-[280px] space-y-2 overflow-y-auto pr-1">
+                      <button
+                        onClick={() => {
+                          setCategoryId("all");
+                        }}
+                        className="flex w-full items-center gap-3 rounded-lg px-1 py-1.5 text-left text-sm transition hover:text-[#1F1F1F]"
+                      >
+                        <span
+                          className={[
+                            "flex h-4 w-4 shrink-0 items-center justify-center border",
+                            categoryId === "all"
+                              ? "border-[#1F1F1F] bg-[#1F1F1F]"
+                              : "border-[#CFC7BA] bg-white",
+                          ].join(" ")}
+                        >
+                          {categoryId === "all" ? (
+                            <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                          ) : null}
+                        </span>
+
+                        <span
+                          className={[
+                            categoryId === "all" ? "font-medium text-[#1F1F1F]" : "text-[#66707A]",
+                          ].join(" ")}
+                        >
+                          Tất cả
+                        </span>
+                      </button>
+
+                      {categories.map((option) => {
+                        const active = categoryId === option.ma_danh_muc;
+
+                        return (
+                          <button
+                            key={option.ma_danh_muc}
+                            onClick={() => {
+                              setCategoryId(option.ma_danh_muc);
+                            }}
+                            className="flex w-full items-center gap-3 rounded-lg px-1 py-1.5 text-left text-sm transition hover:text-[#1F1F1F]"
+                          >
+                            <span
+                              className={[
+                                "flex h-4 w-4 shrink-0 items-center justify-center border",
+                                active
+                                  ? "border-[#1F1F1F] bg-[#1F1F1F]"
+                                  : "border-[#CFC7BA] bg-white",
+                              ].join(" ")}
+                            >
+                              {active ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
+                            </span>
+
+                            <span
+                              className={[
+                                "line-clamp-1",
+                                active ? "font-medium text-[#1F1F1F]" : "text-[#66707A]",
+                              ].join(" ")}
+                            >
+                              {option.ten_danh_muc}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-[#E9E1D6] pt-5">
+                  <button
+                    onClick={() => load(0, search, categoryId, minPrice, maxPrice)}
+                    className="rounded-full border border-[#1F1F1F] bg-[#1F1F1F] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    Áp dụng bộ lọc
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const nextMin = MIN_PRICE;
+                      const nextMax = MAX_PRICE;
+                      setSearch("");
+                      setCategoryId("all");
+                      setSort("newest");
+                      setMinPrice(nextMin);
+                      setMaxPrice(nextMax);
+                      load(0, "", "all", nextMin, nextMax);
+                    }}
+                    className="rounded-full border border-[#E2D9CC] bg-white px-5 py-3 text-sm font-medium text-[#1F1F1F] transition hover:border-[#1F1F1F]/30"
+                  >
+                    Đặt lại bộ lọc
+                  </button>
+
+                  {(minPrice > MIN_PRICE || maxPrice < MAX_PRICE) ? (
+                    <p className="text-center text-xs leading-5 text-[#66707A]">
+                      Đang lọc theo giá:{" "}
+                      <span className="font-medium text-[#1F1F1F]">
+                        {formatPrice(minPrice)} - {formatPrice(maxPrice)}
+                      </span>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </aside>
+
+            <div>
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div className="text-sm text-[#8C8478]">
+                  {loading
+                    ? "Đang cập nhật danh sách..."
+                    : total
+                      ? `${offset + 1}-${Math.min(offset + limit, total)} / ${total} sản phẩm`
+                      : "0 sản phẩm"}
+                </div>
+
+                <div className="hidden text-sm text-[#8C8478] md:block">
+                  {categoriesLoading ? "Đang tải danh mục..." : "Blue Peach Products"}
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="grid grid-cols-2 border-b border-r border-[#E3DBCF] xl:grid-cols-3 2xl:grid-cols-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <ProductSkeleton key={i} />
+                  ))}
+                </div>
+              ) : sortedItems.length === 0 ? (
+                <div className="rounded-[28px] border border-[#E3DBCF] bg-[#FBFAF7] px-6 py-14 text-center shadow-[0_16px_38px_rgba(0,0,0,0.03)]">
+                  <h2 className="font-heading text-4xl font-medium text-[#1F1F1F]">
+                    Không tìm thấy sản phẩm
+                  </h2>
+
+                  <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-[#66707A]">
+                    Hãy thử lại với từ khóa khác, điều chỉnh khoảng giá hoặc chọn một danh mục khác.
+                  </p>
+
+                  <button
+                    onClick={() => {
+                      const nextMin = MIN_PRICE;
+                      const nextMax = MAX_PRICE;
+                      setSearch("");
+                      setCategoryId("all");
+                      setSort("newest");
+                      setMinPrice(nextMin);
+                      setMaxPrice(nextMax);
+                      load(0, "", "all", nextMin, nextMax);
+                    }}
+                    className="mt-6 rounded-full border border-[#1F1F1F] bg-[#1F1F1F] px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    Đặt lại bộ lọc
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 border-b border-r border-[#E3DBCF] xl:grid-cols-3 2xl:grid-cols-4">
+                  {sortedItems.map((p) => (
+                    <ProductCard
+                      key={p.ma_san_pham}
+                      product={p}
+                      badgeText={p.so_luong_ton > 0 ? "Blue Peach" : "Hết hàng"}
+                      showAddToCart
+                      showStock
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-[#66707A]">
+                  {loading
+                    ? "Đang cập nhật danh sách..."
+                    : "Tiếp tục khám phá thêm các thiết kế khác"}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    disabled={offset <= 0 || loading}
+                    onClick={() =>
+                      load(Math.max(0, offset - limit), search, categoryId, minPrice, maxPrice)
+                    }
+                    className="rounded-full border border-[#E2D9CC] bg-white px-5 py-3 text-sm font-medium text-[#1F1F1F] transition disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    ← Trước
+                  </button>
+
+                  <button
+                    disabled={offset + limit >= total || loading}
+                    onClick={() =>
+                      load(offset + limit, search, categoryId, minPrice, maxPrice)
+                    }
+                    className="rounded-full border border-[#E2D9CC] bg-white px-5 py-3 text-sm font-medium text-[#1F1F1F] transition disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Sau →
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
