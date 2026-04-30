@@ -93,13 +93,16 @@ function verifyVnpayQuery(query: Record<string, any>) {
   return signed === secureHash;
 }
 
-function formatDateVN(date = new Date()) {
-  const yyyy = date.getFullYear();
-  const MM = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  const HH = String(date.getHours()).padStart(2, "0");
-  const mm = String(date.getMinutes()).padStart(2, "0");
-  const ss = String(date.getSeconds()).padStart(2, "0");
+function formatDateVN(date: Date) {
+  const vietnamTime = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+
+  const yyyy = vietnamTime.getUTCFullYear();
+  const MM = String(vietnamTime.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(vietnamTime.getUTCDate()).padStart(2, "0");
+  const HH = String(vietnamTime.getUTCHours()).padStart(2, "0");
+  const mm = String(vietnamTime.getUTCMinutes()).padStart(2, "0");
+  const ss = String(vietnamTime.getUTCSeconds()).padStart(2, "0");
+
   return `${yyyy}${MM}${dd}${HH}${mm}${ss}`;
 }
 
