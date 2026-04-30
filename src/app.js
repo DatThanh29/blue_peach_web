@@ -256,7 +256,7 @@ function shouldResetShoppingContext(
     currentShoppingContext?.categoryKeyword &&
     previousShoppingContext?.categoryKeyword &&
     currentShoppingContext.categoryKeyword !==
-      previousShoppingContext.categoryKeyword;
+    previousShoppingContext.categoryKeyword;
 
   if (categoryChanged) return true;
 
@@ -264,7 +264,7 @@ function shouldResetShoppingContext(
     currentShoppingContext?.giftIntent?.recipient &&
     previousShoppingContext?.giftIntent?.recipient &&
     currentShoppingContext.giftIntent.recipient !==
-      previousShoppingContext.giftIntent.recipient;
+    previousShoppingContext.giftIntent.recipient;
 
   if (recipientChanged) return true;
 
@@ -836,9 +836,9 @@ function getStyleReason(product = {}, shoppingContext = {}) {
     }
   }
 
- if (shoppingContext?.styleProfile?.dailyWear && tone.isDailyWear) {
-  return "dễ đeo đi làm hằng ngày và khá dễ phối đồ";
-}
+  if (shoppingContext?.styleProfile?.dailyWear && tone.isDailyWear) {
+    return "dễ đeo đi làm hằng ngày và khá dễ phối đồ";
+  }
 
   return "";
 }
@@ -1007,9 +1007,9 @@ function formatBestChoice(products = [], shoppingContext = {}) {
   const backup = products[1];
 
   const keepCategoryInName = !!shoppingContext?.categoryKeyword;
-const top1Name = simplifyProductName(top1.ten_san_pham, {
-  keepCategory: keepCategoryInName,
-});
+  const top1Name = simplifyProductName(top1.ten_san_pham, {
+    keepCategory: keepCategoryInName,
+  });
   const top1Reason = buildProductReason(top1, shoppingContext);
 
   let opener =
@@ -1031,8 +1031,8 @@ const top1Name = simplifyProductName(top1.ten_san_pham, {
 
   if (backup) {
     const backupName = simplifyProductName(backup.ten_san_pham, {
-  keepCategory: keepCategoryInName,
-});
+      keepCategory: keepCategoryInName,
+    });
     const backupReason = buildProductReason(backup, shoppingContext);
 
     reply += `\n\nMẫu dự phòng mình thấy cũng khá ổn là:\n${backupName} - ${formatCurrency(
@@ -1133,35 +1133,35 @@ function formatRecommendedProducts(
 
   let finalIntro = intro;
 
-if (shoppingContext?.categoryKeyword) {
-  const categoryLabel = shoppingContext.categoryKeyword;
-  finalIntro = `Bạn có thể tham khảo nhanh vài mẫu ${categoryLabel} sau:`;
-}
+  if (shoppingContext?.categoryKeyword) {
+    const categoryLabel = shoppingContext.categoryKeyword;
+    finalIntro = `Bạn có thể tham khảo nhanh vài mẫu ${categoryLabel} sau:`;
+  }
 
- const keepCategoryInName = !!shoppingContext?.categoryKeyword;
+  const keepCategoryInName = !!shoppingContext?.categoryKeyword;
 
-const lines = products
-  .slice(0, 3)
-  .map((p, index) => {
-    const shortName = simplifyProductName(p.ten_san_pham, {
-      keepCategory: keepCategoryInName,
-    });
-    const reason = buildProductReason(p, shoppingContext);
-    return `${index + 1}. ${shortName} - ${formatCurrency(
-      p.gia_ban
-    )} — ${reason}`;
-  })
-  .join("\n");
+  const lines = products
+    .slice(0, 3)
+    .map((p, index) => {
+      const shortName = simplifyProductName(p.ten_san_pham, {
+        keepCategory: keepCategoryInName,
+      });
+      const reason = buildProductReason(p, shoppingContext);
+      return `${index + 1}. ${shortName} - ${formatCurrency(
+        p.gia_ban
+      )} — ${reason}`;
+    })
+    .join("\n");
 
   const followUp = buildFollowUp(shoppingContext, stage);
 
   if (products.length === 1) {
-  if (shoppingContext?.categoryKeyword) {
-    return `Mình đang thấy mẫu ${shoppingContext.categoryKeyword} này là nổi bật nhất theo hướng bạn muốn:\n\n${lines}\n\n${followUp}`;
-  }
+    if (shoppingContext?.categoryKeyword) {
+      return `Mình đang thấy mẫu ${shoppingContext.categoryKeyword} này là nổi bật nhất theo hướng bạn muốn:\n\n${lines}\n\n${followUp}`;
+    }
 
-  return `Mình đang thấy mẫu này là nổi bật nhất theo hướng bạn muốn:\n\n${lines}\n\n${followUp}`;
-}
+    return `Mình đang thấy mẫu này là nổi bật nhất theo hướng bạn muốn:\n\n${lines}\n\n${followUp}`;
+  }
 
   return `${finalIntro}\n\n${lines}\n\n${followUp}`;
 }
@@ -1261,13 +1261,11 @@ app.post("/chat", async (req, res) => {
           reply =
             "Chào bạn, mình chưa tìm thấy đơn hàng với mã này. Bạn kiểm tra lại mã đơn giúp mình nhé.";
         } else {
-          reply = `Chào bạn, mình đã tìm thấy đơn hàng của bạn:\n\nMã đơn: ${
-            order.ma_don_hang
-          }\nTrạng thái: ${order.trang_thai_don}\nThanh toán: ${
-            order.trang_thai_thanh_toan
-          }\nTổng tiền: ${formatCurrency(
-            order.tong_thanh_toan
-          )}\n\nBạn muốn mình hỗ trợ thêm gì về đơn này không?`;
+          reply = `Chào bạn, mình đã tìm thấy đơn hàng của bạn:\n\nMã đơn: ${order.ma_don_hang
+            }\nTrạng thái: ${order.trang_thai_don}\nThanh toán: ${order.trang_thai_thanh_toan
+            }\nTổng tiền: ${formatCurrency(
+              order.tong_thanh_toan
+            )}\n\nBạn muốn mình hỗ trợ thêm gì về đơn này không?`;
         }
 
         metadata.orderId = extractedOrderId;
@@ -1292,7 +1290,9 @@ app.post("/chat", async (req, res) => {
 
         return res.json({
           ok: true,
+          sessionId: session.id,
           reply,
+          products: [],
         });
       }
 
@@ -1305,9 +1305,8 @@ app.post("/chat", async (req, res) => {
         } else {
           const orderLines = orders
             .map((o, index) => {
-              return `${index + 1}. ${o.ma_don_hang} - ${
-                o.trang_thai_don
-              } - ${formatCurrency(o.tong_thanh_toan)}`;
+              return `${index + 1}. ${o.ma_don_hang} - ${o.trang_thai_don
+                } - ${formatCurrency(o.tong_thanh_toan)}`;
             })
             .join("\n");
 
@@ -1335,7 +1334,9 @@ app.post("/chat", async (req, res) => {
 
         return res.json({
           ok: true,
+          sessionId: session.id,
           reply,
+          products: [],
         });
       }
 
@@ -1361,7 +1362,9 @@ app.post("/chat", async (req, res) => {
 
       return res.json({
         ok: true,
+        sessionId: session.id,
         reply,
+        products: [],
       });
     }
 
@@ -1376,13 +1379,16 @@ app.post("/chat", async (req, res) => {
       const reply =
         "Chào bạn, mình đã chuyển yêu cầu sang tư vấn viên rồi nhé. Shop sẽ hỗ trợ bạn sớm nhất có thể.";
 
+      const metadata = {
+        intent: "handover",
+        products: [],
+      };
+
       const { error: botError } = await supabase.from("chat_messages").insert({
         session_id: session.id,
         role: "assistant",
         content: reply,
-        metadata: {
-          intent: "handover",
-        },
+        metadata,
       });
 
       if (botError) throw botError;
@@ -1397,7 +1403,9 @@ app.post("/chat", async (req, res) => {
 
       return res.json({
         ok: true,
+        sessionId: session.id,
         reply,
+        products: metadata?.products || [],
       });
     }
 
@@ -1549,7 +1557,9 @@ app.post("/chat", async (req, res) => {
 
     return res.json({
       ok: true,
+      sessionId: session.id,
       reply,
+      products: compactProducts.slice(0, 3),
     });
   } catch (err) {
     console.error("CHAT ERROR:", err);
