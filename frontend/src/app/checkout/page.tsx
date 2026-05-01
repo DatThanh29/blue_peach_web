@@ -138,7 +138,7 @@ export default function CheckoutPage() {
     [items]
   );
 
-  const shippingFee = 0;
+  const shippingFee = subtotal >= 1000000 || subtotal === 0 ? 0 : 30000;
   const total = Math.max(0, subtotal - discountAmount + shippingFee);
 
   async function applyCoupon() {
@@ -588,7 +588,9 @@ export default function CheckoutPage() {
               </div>
               <div className="flex items-center justify-between text-stone-600">
                 <span>Phí vận chuyển</span>
-                <span>{formatCurrency(shippingFee)}</span>
+                <span>
+                  {shippingFee === 0 ? "Miễn phí" : formatCurrency(shippingFee)}
+                </span>
               </div>
               <div className="flex items-center justify-between pt-2 text-base font-semibold text-stone-900">
                 <span>Tổng thanh toán</span>

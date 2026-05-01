@@ -202,7 +202,7 @@ if (!hasLegacyCustomerInfo && !hasShippingSnapshot) {
     });
 
     const tong_tien_hang = lines.reduce((sum, line) => sum + line.thanh_tien, 0);
-    const phi_van_chuyen = 0;
+    const phi_van_chuyen = tong_tien_hang >= 1000000 || tong_tien_hang === 0 ? 0 : 30000;
 
     let giam_gia = 0;
     let couponId: string | null = null;

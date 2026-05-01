@@ -14,9 +14,8 @@ export default function CartPage() {
     (sum, item) => sum + Number(item.gia_ban) * item.qty,
     0
   );
-  const vat = subtotal * VAT_RATE;
-  const shipping = items.length > 0 ? SHIPPING_COST : 0;
-  const grandTotal = subtotal + vat + shipping;
+  const shippingFee = subtotal >= 1000000 || subtotal === 0 ? 0 : SHIPPING_COST;
+  const total = subtotal + shippingFee;
 
   return (
     <main className="min-h-screen bg-white">
@@ -122,36 +121,21 @@ export default function CartPage() {
                 Tóm tắt đơn hàng
               </h2>
 
-              {/* Subtotal */}
-              <div className="flex justify-between mb-4 text-sm">
-                <span className="text-zinc-600">Tạm tính</span>
-                <span className="font-semibold text-zinc-900">
-                  {subtotal.toLocaleString("vi-VN")}đ
+              <div className="flex justify-between text-sm text-stone-600">
+                <span>Tạm tính</span>
+                <span>{subtotal.toLocaleString("vi-VN")}đ</span>
+              </div>
+
+              <div className="mt-4 flex justify-between text-sm text-stone-600">
+                <span>Vận chuyển</span>
+                <span>
+                  {shippingFee === 0 ? "Miễn phí" : shippingFee.toLocaleString("vi-VN") + "đ"}
                 </span>
               </div>
 
-              {/* VAT */}
-              <div className="flex justify-between mb-4 text-sm">
-                <span className="text-zinc-600">VAT (10%)</span>
-                <span className="font-semibold text-zinc-900">
-                  {vat.toLocaleString("vi-VN")}đ
-                </span>
-              </div>
-
-              {/* Shipping */}
-              <div className="flex justify-between mb-4 text-sm pb-4 border-b border-zinc-300">
-                <span className="text-zinc-600">Vận chuyển</span>
-                <span className="font-semibold text-zinc-900">
-                  {shipping.toLocaleString("vi-VN")}đ
-                </span>
-              </div>
-
-              {/* Grand Total */}
-              <div className="flex justify-between mb-8">
-                <span className="font-semibold text-zinc-900">Tổng cộng</span>
-                <span className="text-2xl font-bold text-zinc-900">
-                  {grandTotal.toLocaleString("vi-VN")}đ
-                </span>
+              <div className="mt-4 flex justify-between border-t border-stone-200 pt-4 text-lg font-semibold text-stone-900">
+                <span>Tổng cộng</span>
+                <span>{total.toLocaleString("vi-VN")}đ</span>
               </div>
 
               {/* Checkout Button */}
