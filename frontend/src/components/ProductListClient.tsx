@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Product = {
   ma_san_pham: string;
@@ -47,6 +47,18 @@ function formatPrice(value: number) {
   return `${Number(value).toLocaleString("vi-VN")}đ`;
 }
 
+function toCategorySlug(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function ProductSkeleton() {
   return (
     <div className="border-l border-t border-[#E3DBCF] bg-[#FBFAF7]">
@@ -63,8 +75,10 @@ function ProductSkeleton() {
 }
 
 export default function ProductListClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const q = searchParams.get("q") || "";
+  const categorySlug = searchParams.get("category") || "";
 
   const [search, setSearch] = useState("");
   const [data, setData] = useState<Resp | null>(null);
@@ -152,6 +166,18 @@ export default function ProductListClient() {
     loadCategories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!categorySlug || categories.length === 0) return;
+
+    const matchedCategory = categories.find(
+      (item) => toCategorySlug(item.ten_danh_muc) === categorySlug
+    );
+
+    if (matchedCategory) {
+      setCategoryId(matchedCategory.ma_danh_muc);
+    }
+  }, [categorySlug, categories]);
 
   useEffect(() => {
     if (q) {
@@ -428,6 +454,7 @@ export default function ProductListClient() {
                       setMinPrice(nextMin);
                       setMaxPrice(nextMax);
                       load(0, "", "all", nextMin, nextMax);
+                      router.push("/products");
                     }}
                     className="rounded-full border border-[#E2D9CC] bg-white px-5 py-3 text-sm font-medium text-[#1F1F1F] transition hover:border-[#1F1F1F]/30"
                   >
@@ -487,6 +514,7 @@ export default function ProductListClient() {
                       setMinPrice(nextMin);
                       setMaxPrice(nextMax);
                       load(0, "", "all", nextMin, nextMax);
+                      router.push("/products");
                     }}
                     className="mt-6 rounded-full border border-[#1F1F1F] bg-[#1F1F1F] px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
                   >
