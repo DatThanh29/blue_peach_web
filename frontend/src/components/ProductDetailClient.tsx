@@ -11,6 +11,7 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { usePathname, useRouter } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import PageBreadcrumb from "@/components/layout/PageBreadcrumb";
+import { authFetch } from "@/lib/api";
 
 type ProductDetail = {
   ma_san_pham: string;
@@ -167,6 +168,10 @@ export default function ProductDetailClient({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewContent, setReviewContent] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const wishlisted = isWishlisted(product.ma_san_pham);
   const wishlistLoading = isToggling(product.ma_san_pham);
@@ -276,6 +281,47 @@ export default function ProductDetailClient({
     } catch (error) {
       console.error("[ProductDetailClient] toggleWishlist failed:", error);
       setToastMessage("Không thể cập nhật wishlist lúc này");
+    }
+  }
+
+  async function handleSubmitReview(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!isAuthenticated) {
+      router.push(
+        `/login?redirect=${encodeURIComponent(
+          pathname || `/products/${slugify(product.ten_san_pham)}-${product.ma_san_pham}`
+        )}`
+      );
+      return;
+    }
+
+    setReviewError(null);
+
+    if (reviewContent.trim().length < 10) {
+      setReviewError("Nội dung đánh giá cần tối thiểu 10 ký tự.");
+      return;
+    }
+
+    try {
+      setReviewSubmitting(true);
+
+      await authFetch("/reviews", {
+        method: "POST",
+        body: JSON.stringify({
+          ma_san_pham: product.ma_san_pham,
+          so_sao: reviewRating,
+          noi_dung: reviewContent.trim(),
+        }),
+      });
+
+      setReviewContent("");
+      setReviewRating(5);
+      setToastMessage("Đã gửi đánh giá. Admin sẽ duyệt trước khi hiển thị.");
+    } catch (error: any) {
+      setReviewError(error?.message || "Không thể gửi đánh giá lúc này.");
+    } finally {
+      setReviewSubmitting(false);
     }
   }
 
@@ -545,6 +591,81 @@ export default function ProductDetailClient({
               </div>
 
               <div className="space-y-4">
+                <div className="mb-6 rounded-[24px] border border-[#DED8CC] bg-white/75 p-5 md:p-6">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-[#8C8478]">
+                        Viết đánh giá
+                      </p>
+                      <h3 className="mt-2 text-xl font-medium text-[#1F1F1F]">
+                        Chia sẻ trải nghiệm của bạn
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-[#66707A]">
+                        Chỉ khách hàng đã mua sản phẩm mới có thể gửi đánh giá. Đánh giá sẽ
+                        được hiển thị sau khi admin duyệt.
+                      </p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSubmitReview} className="mt-5 space-y-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-[#1F1F1F]">
+                        Số sao
+                      </label>
+
+                      <div className="flex gap-2">
+                        {Array.from({ length: 5 }).map((_, idx) => {
+                          const value = idx + 1;
+                          const active = value <= reviewRating;
+
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => setReviewRating(value)}
+                              className={[
+                                "text-2xl transition",
+                                active ? "text-[#1F1F1F]" : "text-[#CFC8BB]",
+                              ].join(" ")}
+                              aria-label={`${value} sao`}
+                            >
+                              ★
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-[#1F1F1F]">
+                        Nội dung đánh giá
+                      </label>
+
+                      <textarea
+                        value={reviewContent}
+                        onChange={(e) => setReviewContent(e.target.value)}
+                        rows={4}
+                        placeholder="Ví dụ: Sản phẩm đẹp, đóng gói cẩn thận, rất phù hợp để đeo hằng ngày..."
+                        className="w-full rounded-[18px] border border-[#DED8CC] bg-white px-4 py-3 text-sm text-[#1F1F1F] outline-none transition focus:border-[#1F1F1F]/40 focus:ring-4 focus:ring-black/5"
+                      />
+                    </div>
+
+                    {reviewError ? (
+                      <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {reviewError}
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="submit"
+                      disabled={reviewSubmitting}
+                      className="inline-flex h-11 items-center justify-center rounded-full bg-[#1F1F1F] px-6 text-sm font-medium text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {reviewSubmitting ? "Đang gửi..." : "Gửi đánh giá"}
+                    </button>
+                  </form>
+                </div>
+
                 {reviewItems.length > 0 ? (
                   reviewItems.map((review) => (
                     <article
