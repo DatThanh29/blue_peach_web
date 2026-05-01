@@ -8,12 +8,26 @@ import PageBreadcrumb from "@/components/layout/PageBreadcrumb";
 import { supabase } from "@/lib/supabase";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
 import { formatShortCode } from "@/utils/formatCode";
+import { authFetch } from "@/lib/api";
 
 type NavItem = {
   label: string;
   href: string;
   icon: React.ReactNode;
   badge?: string;
+};
+
+type OrderDetailItem = {
+  ma_san_pham: string;
+  so_luong_mua: number | null;
+  don_gia_snapshot: number | null;
+  thanh_tien: number | null;
+  products?: {
+    ma_san_pham: string;
+    ten_san_pham: string | null;
+    primary_image?: string | null;
+    sku?: string | null;
+  } | null;
 };
 
 type OrderItem = {
@@ -29,6 +43,7 @@ type OrderItem = {
   hinh_thuc_thanh_toan: string | null;
   ghi_chu: string | null;
   dia_chi_giao_hang_snapshot: any;
+  order_details?: OrderDetailItem[];
 };
 
 function formatCurrency(value?: number | null) {
@@ -254,52 +269,25 @@ export default function AccountOrdersPage() {
   ];
 
   async function loadOrders() {
-    if (!user?.id) return;
+  if (!user?.id) return;
 
-    try {
-      setPageLoading(true);
-      setToast(null);
+  try {
+    setPageLoading(true);
+    setToast(null);
 
-      const { data, error } = await supabase
-        .from("orders")
-        .select(
-          `
-          ma_don_hang,
-          ma_nguoi_dung,
-          ngay_dat_hang,
-          tong_tien_hang,
-          giam_gia,
-          phi_van_chuyen,
-          tong_thanh_toan,
-          trang_thai_don,
-          trang_thai_thanh_toan,
-          hinh_thuc_thanh_toan,
-          ghi_chu,
-          dia_chi_giao_hang_snapshot
-        `
-        )
-        .eq("ma_nguoi_dung", user.id)
-        .order("ngay_dat_hang", { ascending: false });
+    const data = await authFetch("/orders");
 
-      if (error) {
-        setToast({
-          message: error.message || "Không thể tải danh sách đơn hàng.",
-          type: "error",
-        });
-        return;
-      }
-
-      setOrders((data || []) as OrderItem[]);
-    } catch (error) {
-      console.error("[AccountOrdersPage] loadOrders failed:", error);
-      setToast({
-        message: "Không thể tải đơn hàng lúc này.",
-        type: "error",
-      });
-    } finally {
-      setPageLoading(false);
-    }
+    setOrders((data?.items || []) as OrderItem[]);
+  } catch (error: any) {
+    console.error("[AccountOrdersPage] loadOrders failed:", error);
+    setToast({
+      message: error?.message || "Không thể tải đơn hàng lúc này.",
+      type: "error",
+    });
+  } finally {
+    setPageLoading(false);
   }
+}
 
   async function handleLogout() {
     try {
@@ -541,6 +529,70 @@ export default function AccountOrdersPage() {
                                 label="Tổng thanh toán"
                                 value={formatCurrency(order.tong_thanh_toan)}
                               />
+                            </div>
+
+                            <div className="mt-4 rounded-[20px] border border-black/8 bg-white/70 px-4 py-4">
+                              <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-black/42">
+                                Sản phẩm đã mua
+                              </p>
+
+                              {order.order_details && order.order_details.length > 0 ? (
+                                <div className="mt-3 divide-y divide-black/8">
+                                  {order.order_details.map((item) => {
+                                    const product = item.products;
+                                    const productName = product?.ten_san_pham || "Sản phẩm Blue Peach";
+                                    const imageUrl = product?.primary_image || "";
+
+                                    return (
+                                      <div
+                                        key={`${order.ma_don_hang}-${item.ma_san_pham}`}
+                                        className="flex gap-3 py-3"
+                                      >
+                                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-black/8 bg-[#f7f3ee]">
+                                          {imageUrl ? (
+                                            <img
+                                              src={imageUrl}
+                                              alt={productName}
+                                              className="h-full w-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.18em] text-black/35">
+                                              BP
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <div className="min-w-0 flex-1">
+                                          <p className="line-clamp-2 text-sm font-semibold text-black/82">
+                                            {productName}
+                                          </p>
+
+                                          {product?.sku ? (
+                                            <p className="mt-1 text-xs text-black/40">
+                                              SKU: {product.sku}
+                                            </p>
+                                          ) : null}
+
+                                          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-black/50">
+                                            <span>SL: {item.so_luong_mua || 0}</span>
+                                            <span>
+                                              Đơn giá: {formatCurrency(item.don_gia_snapshot || 0)}
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        <div className="shrink-0 text-right text-sm font-semibold text-black/80">
+                                          {formatCurrency(item.thanh_tien || 0)}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <p className="mt-2 text-sm leading-7 text-black/55">
+                                  Chưa có dữ liệu sản phẩm trong đơn hàng này.
+                                </p>
+                              )}
                             </div>
 
                             <div className="mt-4 rounded-[20px] border border-black/8 bg-white/70 px-4 py-4">

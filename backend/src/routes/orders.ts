@@ -56,7 +56,31 @@ router.get("/", requireAuth, async (req, res) => {
   const { data, error, count } = await supabase
     .from("orders")
     .select(
-      "ma_don_hang, ngay_dat_hang, tong_thanh_toan, trang_thai_don, trang_thai_thanh_toan, hinh_thuc_thanh_toan, dia_chi_giao_hang_snapshot",
+      `
+  ma_don_hang,
+  ma_nguoi_dung,
+  ngay_dat_hang,
+  tong_tien_hang,
+  giam_gia,
+  phi_van_chuyen,
+  tong_thanh_toan,
+  trang_thai_don,
+  trang_thai_thanh_toan,
+  hinh_thuc_thanh_toan,
+  ghi_chu,
+  dia_chi_giao_hang_snapshot,
+  order_details (
+  ma_san_pham,
+  so_luong_mua,
+  don_gia_snapshot,
+  thanh_tien,
+  products (
+    ma_san_pham,
+    ten_san_pham,
+    primary_image
+  )
+)
+  `,
       { count: "exact" }
     )
     .eq("ma_nguoi_dung", userId)
@@ -309,7 +333,7 @@ router.post("/", requireAuth, async (req, res) => {
     link: "/account/orders",
     is_read: false,
   });
-    await supabase.from("admin_notifications").insert({
+  await supabase.from("admin_notifications").insert({
     type: "order_created",
     title: `Đơn hàng mới - ${orderId}`,
     message: `Có đơn hàng mới vừa được tạo với tổng thanh toán ${Number(
