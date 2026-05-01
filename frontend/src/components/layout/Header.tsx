@@ -152,7 +152,7 @@ export default function Header() {
                 : "bg-black/[0.08] text-white backdrop-blur-[1px]",
             ].join(" ")}
           >
-            <div className="bp-container flex h-10 items-center justify-between text-[12px] tracking-[0.08em]">
+            <div className="bp-container relative flex h-10 items-center justify-between text-[12px] tracking-[0.08em]">
               <Link
                 href="/contact"
                 className={[
@@ -168,7 +168,7 @@ export default function Header() {
 
               <span
                 className={[
-                  "hidden md:inline text-[13px] font-semibold tracking-[0.14em] transition-colors duration-300",
+                  "pointer-events-none absolute left-1/2 hidden -translate-x-1/2 text-center text-[13px] font-semibold tracking-[0.14em] transition-colors duration-300 md:inline",
                   overlayDark ? "text-white/85" : "text-black/90",
                 ].join(" ")}
               >

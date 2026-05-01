@@ -113,12 +113,12 @@ export default function WhyBluePeach() {
             </p>
 
             <h2 className="font-heading mt-4 text-4xl font-medium leading-none tracking-[-0.02em] text-[#1F1F1F] md:text-5xl">
-              Vì chọn Blue Peach
+              Vì sao chọn Blue Peach
             </h2>
 
             <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-[#66707A] md:text-base">
-              Tinh tế trong thiết kế, chỉn chu trong trải nghiệm và đủ nhẹ nhàng
-              để đồng hành cùng vẻ đẹp thường ngày.
+              Từ chất liệu bạc 925 chọn lọc đến trải nghiệm mua sắm chỉn chu,
+              Blue Peach hướng đến vẻ đẹp tối giản, tinh tế và bền vững theo thời gian.
             </p>
           </div>
 
